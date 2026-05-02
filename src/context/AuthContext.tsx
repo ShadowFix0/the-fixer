@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
@@ -27,12 +29,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     });
 
+    // Handle redirect result
+    getRedirectResult(auth).catch((error) => {
+      console.error("Error handling redirect result", error);
+    });
+
     return () => unsubscribe();
   }, []);
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      // Use redirect on mobile for better compatibility
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error) {
       console.error("Error signing in with Google", error);
     }
@@ -45,10 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      console.log("Attempting to sign out...");
       await signOut(auth);
-      console.log("Signed out successfully!");
-      // Force reload to clear all states and memory
       window.location.reload();
     } catch (error) {
       console.error("Error signing out", error);
