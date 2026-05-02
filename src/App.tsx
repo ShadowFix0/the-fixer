@@ -1,0 +1,799 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { useGameState } from './hooks/useGameState';
+import { useNotifications } from './hooks/useNotifications';
+import { useAuth } from './context/AuthContext';
+import Login from './components/Login';
+import CharacterProfile from './components/CharacterProfile';
+import HabitList from './components/HabitList';
+import MissionBoard from './components/MissionBoard';
+import ShadowArmy from './components/ShadowArmy';
+import DopamineFast from './components/DopamineFast';
+import Store from './components/Store';
+import SystemChat from './components/SystemChat';
+import SystemMemoryDisplay from './components/SystemMemoryDisplay';
+import Plans from './components/Plans';
+import WaterTracker from './components/WaterTracker';
+import { 
+  LayoutDashboard, 
+  Swords, 
+  ScrollText, 
+  Ghost, 
+  Lock, 
+  ShoppingBag, 
+  Bell,
+  Search,
+  Settings,
+  CircleUser,
+  MessageSquare,
+  X,
+  Menu,
+  Clock,
+  BellRing,
+  LogOut,
+  FileText
+} from 'lucide-react';
+export default function App() {
+  const { user, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0C] flex flex-col items-center justify-center gap-6">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1], 
+            rotate: [0, 10, -10, 0],
+            opacity: [0.5, 1, 0.5] 
+          }}
+          transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+          className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(37,99,235,0.3)]"
+        >
+          <span className="text-white font-black text-5xl italic">S</span>
+        </motion.div>
+        <div className="text-center">
+          <p className="text-blue-500 font-bold tracking-[0.3em] uppercase text-xs animate-pulse">Initializing System...</p>
+          <p className="text-gray-600 text-[10px] mt-2 font-mono">Verifying Hunter Credentials</p>
+        </div>
+        
+        {/* Fallback button if stuck for too long */}
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 8 }}
+          onClick={() => window.location.reload()}
+          className="mt-8 px-4 py-2 border border-white/10 rounded-lg text-gray-500 text-[10px] hover:text-white transition-colors"
+        >
+          Stuck? Reset System
+        </motion.button>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  return <HunterSystem />;
+}
+
+function HunterSystem() {
+  const { user, logout } = useAuth();
+  const { 
+    state, 
+    completeHabit, 
+    failHabit, 
+    addMission, 
+    startMission,
+    completeMission, 
+    setDopamineFast,
+    buyItem,
+    addShadow,
+    addHabit,
+    deleteHabit,
+    deleteMission,
+    updateSystemMemory,
+    ascend,
+    recordSync,
+    setupNames,
+    addPlan,
+    deletePlan,
+    updatePlan,
+    updateWaterIntake,
+    setWaterGoal
+  } = useGameState();
+
+  const { permission, requestPermission, sendLocalNotification } = useNotifications();
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  
+  const [showSetup, setShowSetup] = useState(false);
+  const [playerInput, setPlayerInput] = useState('');
+  const [systemInput, setSystemInput] = useState('');
+
+  useEffect(() => {
+    if (user && !state.character.name && !showSetup) {
+      setShowSetup(true);
+    }
+  }, [user, state.character.name]);
+
+  const handleSetupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (playerInput.trim() && systemInput.trim()) {
+      setupNames(playerInput, systemInput);
+      setShowSetup(false);
+    }
+  };
+
+  useEffect(() => {
+    // Habit Reminder at 8 PM
+    const checkHabits = () => {
+      const now = new Date();
+      if (now.getHours() === 20 && now.getMinutes() === 0) {
+        const uncompleted = state.habits.filter(h => h.isPositive && !h.completedToday);
+        if (uncompleted.length > 0) {
+          sendLocalNotification('تذكير المساء', {
+            body: `لديك ${uncompleted.length} عادات إيجابية لم تكتمل بعد اليوم. لا تستسلم!`,
+            tag: 'habit-reminder'
+          });
+        }
+      }
+    };
+
+    const interval = setInterval(checkHabits, 60000);
+    return () => clearInterval(interval);
+  }, [state.habits, sendLocalNotification]);
+
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const activeTimedMission = state.missions.find(m => m.startTime && !m.isCompleted);
+  const [globalTimeLeft, setGlobalTimeLeft] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (permission === 'default') {
+      const timer = setTimeout(() => setShowNotificationPrompt(true), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [permission]);
+
+  useEffect(() => {
+    if (!activeTimedMission) {
+      setGlobalTimeLeft(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - (activeTimedMission.startTime || 0);
+      const remaining = (activeTimedMission.durationMinutes! * 60 * 1000) - elapsed;
+
+      if (remaining <= 0) {
+        setGlobalTimeLeft('انتهى الوقت');
+        if (remaining > -2000) { // Only notify once when it just ended
+          sendLocalNotification('انتهت المهمة!', {
+            body: `لقد انتهى الوقت المخصص لمهمة: ${activeTimedMission.title}`,
+            tag: 'mission-end'
+          });
+        }
+        clearInterval(timer);
+      } else {
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        setGlobalTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+        
+        // Notify at 1 minute mark
+        if (minutes === 1 && seconds === 0) {
+          sendLocalNotification('بقي دقيقة واحدة!', {
+            body: `مهمتك "${activeTimedMission.title}" على وشك الانتهاء.`,
+            tag: 'mission-warning'
+          });
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeTimedMission, sendLocalNotification]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const filteredHabits = state.habits.filter(h => 
+    h.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const filteredBosses = state.activeBosses.filter(b =>
+    b.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const filteredMissions = state.missions.filter(m =>
+    m.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="lg:col-span-2">
+                <CharacterProfile stats={state.character} onAscend={ascend} />
+              </div>
+              <div className="pro-card p-8 flex flex-col justify-center bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-blue-500/20 shadow-xl shadow-blue-900/10 hidden lg:flex">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Ghost size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold tracking-tight">إرشادات النظام</h3>
+                </div>
+                <p className="text-sm leading-relaxed text-blue-100/70 italic font-light">
+                  "بصفتك ملك الظلال المستقبلي، فإن كل عادة تلتزم بها اليوم تزيد من قوة جيشك غداً. المماطلة هي العدو الأول، فالعالم لا ينتظر الضعفاء."
+                </p>
+                <div className="mt-8 flex items-center justify-between">
+                  <span className="label-caps">معدل الانضباط</span>
+                  <span className="text-xl font-bold font-mono text-blue-400">88%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-12 gap-6 lg:gap-8">
+              <div className="col-span-12 xl:col-span-8 space-y-8 lg:space-y-10">
+                 <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl lg:text-2xl font-bold tracking-tight">النشاط القتالي</h2>
+                      <p className="text-[10px] lg:text-xs text-gray-500 mt-1 uppercase tracking-widest font-bold">الطقوس اليومية ومواجهة الزعماء</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="badge-rank hidden sm:block">وضع المعركة: نشط</div>
+                    </div>
+                 </div>
+
+                 <HabitList 
+                  habits={filteredHabits} 
+                  activeBosses={filteredBosses}
+                  onComplete={completeHabit} 
+                  onFail={failHabit} 
+                  onAdd={addHabit}
+                  onDelete={deleteHabit}
+                 />
+              </div>
+
+              <div className="col-span-12 xl:col-span-4 space-y-6 lg:space-y-8">
+                 <WaterTracker 
+                   data={state.waterIntake || { targetLiters: 2, currentMl: 0 }} 
+                   onAdd={updateWaterIntake} 
+                   onSetGoal={setWaterGoal} 
+                 />
+                 <ShadowArmy shadows={state.shadows} />
+                 
+                 <div className="pro-card p-6 border-amber-500/20 bg-amber-950/5">
+                   <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-500 mb-4 text-center lg:text-right">أكثر المهمات تأثيراً</h4>
+                   {filteredMissions.filter(m => m.type === 'Fated').slice(0, 2).map(m => (
+                     <div key={m.id} className="mb-4 pb-4 border-b border-white/5 last:border-0 last:pb-0">
+                       <p className="text-sm font-medium mb-1">{m.title}</p>
+                       <p className="text-[10px] text-gray-500 italic">المكافأة: +{m.xpReward} XP</p>
+                     </div>
+                   ))}
+                   {filteredMissions.filter(m => m.type === 'Fated').length === 0 && (
+                     <p className="text-[10px] text-gray-600 text-center italic py-4">لا توجد مهمات مصيرية حالية</p>
+                   )}
+                 </div>
+              </div>
+            </div>
+          </>
+        );
+      case 'habits':
+        return (
+          <div className="max-w-4xl mx-auto">
+            <HabitList 
+              habits={filteredHabits} 
+              activeBosses={filteredBosses}
+              onComplete={completeHabit} 
+              onFail={failHabit} 
+              onAdd={addHabit}
+              onDelete={deleteHabit}
+            />
+          </div>
+        );
+      case 'missions':
+        return (
+          <div className="max-w-5xl mx-auto space-y-8">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl lg:text-3xl font-bold tracking-tight text-center w-full lg:text-right">لوحة المهمات</h2>
+              </div>
+              <MissionBoard 
+                missions={filteredMissions} 
+                onComplete={completeMission} 
+                onStart={startMission}
+                onDelete={deleteMission}
+                onAddMissions={(newMissions) => newMissions.forEach(addMission)} 
+                characterLevel={state.character.level}
+                lastSyncDate={state.lastSyncDate}
+                onRecordSync={recordSync}
+              />
+          </div>
+        );
+      case 'shadows':
+        return (
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-2xl lg:text-3xl font-bold tracking-tight mb-8 text-center lg:text-right">جيش الظلال الخاص بك</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+               <ShadowArmy shadows={state.shadows} />
+               <div className="pro-card p-8 flex flex-col justify-center border-dashed bg-transparent text-center lg:text-right">
+                  <Ghost className="mx-auto lg:mx-0 text-gray-700 mb-4" size={40} />
+                  <h4 className="text-lg font-bold mb-2">استخلاص الظلال</h4>
+                  <p className="text-xs text-gray-500 leading-relaxed">عندما تهزم زعيماً قوياً (زعيم رتبة S) أو تنهي مهمة مصيرية، يمكنك استخلاص ظله لضمه إلى جيشك.</p>
+               </div>
+            </div>
+          </div>
+        );
+      case 'store':
+        return (
+          <div className="max-w-5xl mx-auto">
+            <Store 
+              gold={state.character.gold} 
+              onPurchase={(item) => {
+                buyItem(item.price, item.effect);
+                if (item.name.includes('استدعاء')) {
+                  addShadow({
+                    id: `shadow-${Date.now()}`,
+                    name: 'جندي عادي',
+                    rank: 'E',
+                    ability: 'حماية أساسية',
+                    image: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
+                    isActive: true
+                  });
+                }
+              }} 
+            />
+          </div>
+        );
+      case 'chat':
+        return (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="text-center lg:text-right">
+              <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">نظام التواصل المباشر</h2>
+              <p className="text-sm text-gray-500 mt-1">تحدث مع النظام للحصول على مهام مخصصة حسب حالتك</p>
+            </div>
+            <SystemChat 
+              onAddMissions={(newMissions) => newMissions.forEach(addMission)} 
+              onStartMission={startMission}
+              onDeleteMission={deleteMission}
+              systemMemory={state.systemMemory}
+              onUpdateMemory={updateSystemMemory}
+            />
+            <div className="mt-12 pt-12 border-t border-white/5">
+              <div className="mb-6">
+                <h3 className="text-lg font-bold tracking-tight">سجل ذاكرة النظام</h3>
+                <p className="text-xs text-gray-500">البيانات التي جمعها النظام عنك خلال محادثاتك</p>
+              </div>
+              <SystemMemoryDisplay memory={state.systemMemory || { interests: [], priorities: [], passions: [], dreams: [], problems: [], mistakes: [], otherNotes: [] }} />
+            </div>
+          </div>
+        );
+      case 'plans':
+        return (
+          <div className="max-w-6xl mx-auto h-full">
+            <Plans 
+              plans={state.plans || []} 
+              onAddPlan={addPlan} 
+              onDeletePlan={deletePlan} 
+              onUpdatePlan={updatePlan}
+            />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-[#f1f1f1] flex flex-col lg:flex-row overflow-hidden font-sans" dir="rtl">
+      {/* Initial Setup Modal */}
+      <AnimatePresence>
+        {showSetup && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="pro-card p-10 max-w-lg w-full bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-blue-500/40 shadow-2xl shadow-blue-500/10"
+            >
+              <div className="flex flex-col items-center text-center mb-10">
+                <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/40">
+                  <Ghost size={32} className="text-white" />
+                </div>
+                <h2 className="text-2xl font-black mb-2 tracking-tight">مرحباً بك في النظام</h2>
+                <p className="text-sm text-blue-100/60 leading-relaxed italic">"لبدء المزامنة، يحتاج النظام إلى معرفة هويتك وكيف ترغب في مناداتي."</p>
+              </div>
+
+              <form onSubmit={handleSetupSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em] block">اسم اللاعب (أنت)</label>
+                  <input 
+                    required
+                    type="text" 
+                    placeholder="مثلاً: سونغ جين وو"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all font-light"
+                    value={playerInput}
+                    onChange={(e) => setPlayerInput(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em] block">اسم النظام (الرفيق)</label>
+                  <input 
+                    required
+                    type="text" 
+                    placeholder="مثلاً: الخيميائي أو المساعد"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all font-light"
+                    value={systemInput}
+                    onChange={(e) => setSystemInput(e.target.value)}
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-sm uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-900/40 mt-4 active:scale-[0.98]"
+                >
+                  تأكيد البيانات والمزامنة
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dopamine Fast Overlay */}
+      <DopamineFast 
+        isActive={state.isDopamineFastActive} 
+        onDeactivate={() => setDopamineFast(false)} 
+      />
+
+      {/* Sidebar Overlay for Mobile */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/80 z-[60] lg:hidden backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Modern Sidebar */}
+      <aside className={`
+        fixed inset-y-0 right-0 z-[70] w-72 bg-[#121216]/95 lg:bg-[#121216] border-l border-white/5 flex flex-col backdrop-blur-md transition-transform duration-300 lg:static lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+      `}>
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/40">
+                <span className="text-xl font-black text-white italic">S</span>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold tracking-tight leading-none uppercase">سيد الظلال</h1>
+                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">الإصدار 2.0</span>
+              </div>
+            </div>
+            <button className="lg:hidden text-gray-500 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
+              <X size={20} />
+            </button>
+          </div>
+
+          <nav className="space-y-1.5">
+            <NavItem 
+              icon={<LayoutDashboard size={18} />} 
+              label="لوحة القيادة" 
+              active={activeTab === 'dashboard'} 
+              onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<Swords size={18} />} 
+              label="الطقوس اليومية" 
+              active={activeTab === 'habits'} 
+              onClick={() => { setActiveTab('habits'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<ScrollText size={18} />} 
+              label="لوحة المهمات" 
+              active={activeTab === 'missions'} 
+              onClick={() => { setActiveTab('missions'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<Ghost size={18} />} 
+              label="جيش الظلال" 
+              active={activeTab === 'shadows'} 
+              onClick={() => { setActiveTab('shadows'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<ShoppingBag size={18} />} 
+              label="متجر النظام" 
+              active={activeTab === 'store'} 
+              onClick={() => { setActiveTab('store'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<MessageSquare size={18} />} 
+              label="محادثة النظام" 
+              active={activeTab === 'chat'} 
+              onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<FileText size={18} />} 
+              label="الخطط الاستراتيجية" 
+              active={activeTab === 'plans'} 
+              onClick={() => { setActiveTab('plans'); setIsSidebarOpen(false); }} 
+            />
+          </nav>
+        </div>
+
+        <div className="mt-auto p-8 pb-32 lg:pb-8">
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-6">
+             <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Lock size={14} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">صيام الدوبامين</span>
+             </div>
+             <button 
+                onClick={() => setDopamineFast(true)}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-900/40"
+             >
+               تشغيل وضع التركيز
+             </button>
+          </div>
+
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border border-white/10" />
+            <div className="flex flex-col">
+              <span className="text-sm font-bold uppercase tracking-tight">{state.character.name || state.character.rank}</span>
+              <span className="text-[10px] text-gray-500">مستوى {state.character.level} {state.systemName && `| ${state.systemName}`}</span>
+            </div>
+            <div className="mr-auto flex gap-2">
+              <Settings size={16} className="text-gray-600 cursor-pointer hover:text-white transition-colors" />
+              <button 
+                onClick={logout}
+                className="text-[10px] uppercase font-bold text-gray-600 hover:text-red-500 transition-colors"
+              >
+                تسجيل الخروج
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Container */}
+      <div className={`flex-1 flex flex-col min-w-0 bg-[#0A0A0C] relative transition-all duration-700 ${state.isDopamineFastActive ? 'blur-2xl grayscale brightness-50 pointer-events-none' : ''}`}>
+        
+        {/* Top Header */}
+        <header className="h-20 border-b border-white/5 flex items-center justify-between px-4 lg:px-10 glass sticky top-0 bg-[#0A0A0C]/80 z-30 backdrop-blur-xl shrink-0">
+          <div className="flex items-center gap-4 lg:gap-8">
+            <button className="lg:hidden p-2 bg-white/5 rounded-lg text-gray-400 hover:text-white" onClick={() => setIsSidebarOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <div className="relative group flex-1 sm:flex-none">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors" size={14} />
+              <input 
+                type="text" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="ابحث..." 
+                className="bg-white/5 border border-white/5 rounded-full py-2 pr-9 pl-4 text-[11px] w-full sm:w-64 focus:outline-none focus:border-blue-500/50 transition-all font-light focus:bg-white/10"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 lg:gap-6">
+             <div className="hidden md:flex items-center gap-4 text-sm text-gray-400 font-mono">
+                <span className="text-blue-500 font-bold">نسخة بريمو</span>
+                <div className="w-px h-4 bg-white/10" />
+                <div className="flex items-center gap-2">
+                   <Bell 
+                     size={18} 
+                     className={`${permission === 'granted' ? 'text-blue-500' : 'text-gray-500'} cursor-pointer hover:text-white transition-colors`} 
+                     onClick={() => requestPermission()}
+                   />
+                   <div className={`w-2 h-2 ${permission === 'granted' ? 'bg-blue-500' : 'bg-red-500'} rounded-full animate-pulse`} />
+                </div>
+             </div>
+             
+             <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block" />
+
+             <div className="flex items-center gap-3">
+               <div className="w-8 h-8 rounded-full bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-500 overflow-hidden">
+                 {user?.photoURL ? (
+                   <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                 ) : (
+                   <CircleUser size={18} />
+                 )}
+               </div>
+               
+               <button 
+                 onClick={logout}
+                 className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-xs font-bold transition-colors"
+                 title="تسجيل الخروج"
+               >
+                 <LogOut size={14} />
+                 <span className="hidden sm:inline">خروج</span>
+               </button>
+             </div>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-10 pb-32 lg:pb-10 custom-scrollbar scroll-smooth bg-radial-gradient min-h-0">
+          <AnimatePresence>
+            {showNotificationPrompt && permission === 'default' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mb-6"
+              >
+                <div className="p-4 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-500 shrink-0">
+                      <BellRing size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold">فعل الإشعارات</h4>
+                      <p className="text-[10px] text-gray-500">ليقوم النظام بتنبيهك عند اقتراب نهاية المهام أو الأخبار الهامة.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setShowNotificationPrompt(false)}
+                      className="px-4 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-colors"
+                    >
+                      لاحقاً
+                    </button>
+                    <button 
+                      onClick={() => {
+                        requestPermission();
+                        setShowNotificationPrompt(false);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-black transition-all shadow-lg shadow-blue-900/40"
+                    >
+                      تفعيل الآن
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTimedMission && globalTimeLeft && (
+              <motion.div
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -20, opacity: 0 }}
+                className="mb-8 p-4 lg:p-6 rounded-2xl bg-[#1E293B]/80 border border-blue-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(59,130,246,0.15)] backdrop-blur-md"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-900/50 animate-pulse shrink-0">
+                    <Clock size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-[.2em]">مهمة نشطة حالياً</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping" />
+                    </div>
+                    <h4 className="text-base font-black text-white leading-none">{activeTimedMission.title}</h4>
+                  </div>
+                </div>
+                <div className="flex items-center gap-8 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="text-center sm:text-right">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">الوقت المتبقي</p>
+                    <p className="text-3xl font-black font-mono text-blue-400 tracking-tighter drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                      {globalTimeLeft}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => completeMission(activeTimedMission.id)}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-900/40 flex items-center gap-2 shrink-0"
+                  >
+                    إكمال الآن
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {renderContent()}
+        </main>
+      </div>
+
+      {/* Bottom Navigation for Mobile */}
+      <nav className="fixed bottom-0 inset-x-0 h-20 bg-[#121216]/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 z-50 lg:hidden shadow-2xl">
+        <BottomNavItem 
+          icon={<LayoutDashboard size={20} />} 
+          label="الرئيسية" 
+          active={activeTab === 'dashboard'} 
+          onClick={() => setActiveTab('dashboard')} 
+        />
+        <BottomNavItem 
+          icon={<Swords size={20} />} 
+          label="القتال" 
+          active={activeTab === 'habits'} 
+          onClick={() => setActiveTab('habits')} 
+        />
+        <BottomNavItem 
+          icon={<ScrollText size={20} />} 
+          label="المهمات" 
+          active={activeTab === 'missions'} 
+          onClick={() => setActiveTab('missions')} 
+        />
+        <BottomNavItem 
+          icon={<MessageSquare size={20} />} 
+          label="النظام" 
+          active={activeTab === 'chat'} 
+          onClick={() => setActiveTab('chat')} 
+        />
+        <BottomNavItem 
+          icon={<FileText size={20} />} 
+          label="الخطط" 
+          active={activeTab === 'plans'} 
+          onClick={() => setActiveTab('plans')} 
+        />
+      </nav>
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <motion.button 
+      whileHover={{ x: 4 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all group relative ${
+        active 
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
+          : 'text-gray-500 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      <div className={`transition-colors ${active ? 'text-white' : 'text-gray-600 group-hover:text-blue-400'}`}>
+        {icon}
+      </div>
+      <span className="text-sm font-medium">{label}</span>
+      {active && (
+        <motion.div 
+          layoutId="activeTabIndicator"
+          className="mr-auto w-1.5 h-1.5 bg-white rounded-full" 
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        />
+      )}
+    </motion.button>
+  );
+}
+
+function BottomNavItem({ icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <motion.button 
+      whileTap={{ scale: 0.9 }}
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-1.5 px-3 py-1 rounded-xl transition-all relative ${
+        active ? 'text-blue-500' : 'text-gray-500'
+      }`}
+    >
+      <div className={`transition-all duration-300 ${active ? 'scale-110' : 'scale-100'}`}>
+        {icon}
+      </div>
+      <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+      {active && (
+        <motion.div 
+          layoutId="bottomNavIndicator"
+          className="absolute -top-1 w-1 h-1 bg-blue-500 rounded-full" 
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        />
+      )}
+    </motion.button>
+  );
+}

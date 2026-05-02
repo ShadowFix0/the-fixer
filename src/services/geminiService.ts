@@ -1,0 +1,248 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+
+const MISSION_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    missions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          description: { type: Type.STRING },
+          type: { type: Type.STRING, enum: ["Quick", "Fated"] },
+          xpReward: { type: Type.NUMBER },
+          goldReward: { type: Type.NUMBER },
+          durationMinutes: { type: Type.NUMBER, description: "Optional time limit in minutes for the mission." }
+        },
+        required: ["title", "description", "type", "xpReward", "goldReward"]
+      }
+    }
+  },
+  required: ["missions"]
+};
+
+// We now use a single robust sequence for all requests to ensure maximum stability.
+const MODELS_STABLE = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-3-flash-preview"];
+
+async function generateContentWithFallback(config: any) {
+  let lastError: any = null;
+  
+  for (const [index, modelName] of MODELS_STABLE.entries()) {
+    const controller = new AbortController();
+    const timeout = index === 0 ? 15000 : 30000;
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await ai.models.generateContent({
+        ...config,
+        model: modelName,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      
+      const status = error.status;
+      const name = error.name;
+      
+      if (name === 'AbortError' || status === 503 || status === 429 || status === 404 || status === 500) {
+        console.warn(`[System] Stable fallback activated: ${modelName} encountered issues.`);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
+export async function chatWithSystem(message: string, history: any[], systemMemory?: any) {
+  if (!import.meta.env.VITE_GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing.");
+  }
+
+  try {
+    const config = {
+      contents: [
+        ...history,
+        { role: 'user', parts: [{ text: message }] }
+      ],
+      config: {
+        systemInstruction: `Shadow Sovereign System.
+        1. Context: Dark RPG. Precise, cold, supportive only to the strong.
+        2. Missions: Generate 1-3 missions if requested or if user mentions goals.
+        3. Lang: Arabic only.
+        4. JSON format.
+        Memory: ${JSON.stringify(systemMemory || {})}`,
+        responseMimeType: "application/json",
+        temperature: 0.7,
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            message: { type: Type.STRING },
+            missions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  type: { type: Type.STRING, enum: ["Quick", "Fated"] },
+                  xpReward: { type: Type.NUMBER },
+                  goldReward: { type: Type.NUMBER }
+                },
+                required: ["title", "description", "type"]
+              }
+            }
+          },
+          required: ["message", "missions"]
+        }
+      }
+    };
+
+    const response = await generateContentWithFallback(config);
+    const text = response.text || "{}";
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) return JSON.parse(match[0]);
+      throw e;
+    }
+  } catch (error: any) {
+    console.error("Critical System Failure:", error);
+    return {
+      message: "نعتذر أيها العاهل، النظام في حالة صيانة طارئة. سأعود للعمل فوراً.",
+      missions: []
+    };
+  }
+}
+
+export async function generateAIPlan(topic: string) {
+  try {
+    const config = {
+      contents: [{ role: 'user', parts: [{ text: `Generate a comprehensive, professional, and interactive plan for: ${topic}` }] }],
+      config: {
+        systemInstruction: `You are the Shadow Sovereign Planner. 
+        Create a detailed, multi-step plan in Arabic. 
+        Format: Markdown with bold headers, bullet points, and clear phases. 
+        Be encouraging but authoritative.
+        Include: Objectives, Weekly Schedule, and Precautions.`,
+        temperature: 0.8,
+      }
+    };
+
+    const response = await generateContentWithFallback(config);
+    return response.text || "فشل في توليد الخطة. حاول مرة أخرى.";
+  } catch (error) {
+    console.error("Plan Generation Error:", error);
+    return "حدث خطأ أثناء محاولة صياغة الخطة الاستراتيجية.";
+  }
+}
+
+export async function refineAIPlan(currentPlan: string, feedback: string) {
+  try {
+    const config = {
+      contents: [{ 
+        role: 'user', 
+        parts: [{ text: `Current Plan:\n${currentPlan}\n\nUser Feedback/Request: ${feedback}\n\nPlease update the plan accordingly. Maintain the professional Markdown format.` }] 
+      }],
+      config: {
+        systemInstruction: `You are the Shadow Sovereign Planner. 
+        Update the existing strategy based on user feedback. 
+        Keep it in Arabic, professional, and detailed. 
+        Do not start from scratch, build upon the current plan.`,
+        temperature: 0.7,
+      }
+    };
+
+    const response = await generateContentWithFallback(config);
+    return response.text || "فشل في تحديث الخطة. حاول مرة أخرى.";
+  } catch (error) {
+    console.error("Plan Refinement Error:", error);
+    return "حدث خطأ أثناء محاولة تحديث الخطة الاستراتيجية.";
+  }
+}
+
+
+
+
+export async function generateDailyMissions(mood: string, performance: string) {
+  // Keeping as fallback
+  if (!import.meta.env.VITE_GEMINI_API_KEY) return [];
+  try {
+    const response = await generateContentWithFallback({
+      contents: `Generate 3 daily RPG-style missions in Arabic.
+      Mood: ${mood} | Perf: ${performance}.
+      Optional: durationMinutes.`,
+      config: {
+        responseMimeType: "application/json",
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.MINIMAL,
+        },
+        responseSchema: MISSION_SCHEMA
+      }
+    });
+    const data = JSON.parse(response.text || "{}");
+    return data.missions || [];
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+export async function getDopamineFastGuidance() {
+  if (!import.meta.env.VITE_GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing.");
+  }
+
+  try {
+    const response = await generateContentWithFallback({
+      contents: "The user is starting a 'Dopamine Fast' focus session. Give them a list of 5 specific modern distractions or dopamine-triggering behaviors to AVOID during this hour. Use an RPG/System tone (like 'Prohibited Actions' or 'Forbidden Rites'). Also provide a brief, cold but encouraging motivation message. Return in Arabic.",
+      config: {
+        systemInstruction: "You are the 'Shadow Sovereign System'. Your tone is absolute, authoritative, and cold yet supportive. You speak to the user as their system interface. Always respond in Arabic unless specifically asked otherwise.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            prohibitedActions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "5 distinct behaviors or distractions to avoid during the fast."
+            },
+            systemMotivation: {
+              type: Type.STRING,
+              description: "A short, powerful motivating message from the System."
+            }
+          },
+          required: ["prohibitedActions", "systemMotivation"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  } catch (error) {
+    console.error("Error in getDopamineFastGuidance:", error);
+    return { 
+      prohibitedActions: [
+        "تجنب التمرير اللانهائي في وسائل التواصل الاجتماعي",
+        "تجنب التحقق من الإشعارات غير الضرورية",
+        "تجنب الوجبات السريعة أو الأطعمة الغنية بالسكر",
+        "تجنب الألعاب الإلكترونية سريعة الوتيرة",
+        "تجنب التشتت بتعدد المهام غير المدروسة"
+      ], 
+      systemMotivation: "النظام يراقب تقدمك. لا تخذل طموحاتك." 
+    };
+  }
+}
+
