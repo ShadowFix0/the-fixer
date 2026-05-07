@@ -47,8 +47,13 @@ const INITIAL_MISSIONS: Mission[] = [];
 export function useGameState() {
   const { user } = useAuth();
   const [state, setState] = useState<GameState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to parse saved game state:", e);
+      localStorage.removeItem(STORAGE_KEY);
+    }
     return {
       character: INITIAL_STATS,
       habits: DEFAULT_HABITS,

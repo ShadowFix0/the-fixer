@@ -24,26 +24,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Check for persistent Guest user in localStorage
+    let guestFound = false;
     const savedGuest = localStorage.getItem('shadow_sovereign_guest_user');
+    
+    // 1. Initial check for guest
     if (savedGuest) {
-      setUser(JSON.parse(savedGuest));
-      setLoading(false);
+      try {
+        const guestData = JSON.parse(savedGuest);
+        setUser(guestData);
+        guestFound = true;
+      } catch (e) {
+        localStorage.removeItem('shadow_sovereign_guest_user');
+      }
     }
 
     // 2. Firebase Auth Listener
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        localStorage.removeItem('shadow_sovereign_guest_user'); // Clear guest if real user exists
-      } else if (!savedGuest) {
+        localStorage.removeItem('shadow_sovereign_guest_user');
+      } else if (!guestFound) {
         setUser(null);
       }
       setLoading(false);
     });
 
-    // Handle redirect result
-    getRedirectResult(auth).catch((error) => {
+    // Handle redirect result (optional but good for debugging)
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        setUser(result.user);
+      }
+    }).catch((error) => {
       console.error("Error handling redirect result", error);
     });
 
