@@ -60,6 +60,7 @@ export function useGameState() {
       isDopamineFastActive: false,
       lastResetDate: new Date().toISOString().split('T')[0],
       systemMemory: INITIAL_MEMORY,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
   });
 

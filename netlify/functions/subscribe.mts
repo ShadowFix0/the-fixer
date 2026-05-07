@@ -21,18 +21,25 @@ export default async (req: Request, context: Context) => {
   }
 
   try {
-    const subscription = await req.json();
+    const data = await req.json();
+    const { userId, ...subscription } = data;
     
-    // Check if subscription already exists to avoid duplicates
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "UserId is required" }), { status: 400 });
+    }
+
+    // Check if subscription already exists for this user and endpoint
     const q = query(
       collection(db, "push_subscriptions"), 
-      where("endpoint", "==", subscription.endpoint)
+      where("endpoint", "==", subscription.endpoint),
+      where("userId", "==", userId)
     );
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
       await addDoc(collection(db, "push_subscriptions"), {
         ...subscription,
+        userId,
         createdAt: new Date().toISOString()
       });
     }

@@ -4,20 +4,22 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 const VAPID_PUBLIC_KEY = (import.meta as any).env.VITE_VAPID_PUBLIC_KEY;
 
 export function useNotifications() {
+  const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator && permission === 'granted' && VAPID_PUBLIC_KEY) {
+    if ('serviceWorker' in navigator && permission === 'granted' && VAPID_PUBLIC_KEY && user) {
       subscribeUser();
     }
-  }, [permission]);
+  }, [permission, user]);
 
   const requestPermission = async () => {
     if (!('Notification' in window)) {
@@ -41,7 +43,10 @@ export function useNotifications() {
       await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription),
+        body: JSON.stringify({
+          ...JSON.parse(JSON.stringify(subscription)),
+          userId: user?.uid
+        }),
       });
 
       setIsSubscribed(true);

@@ -128,25 +128,6 @@ function HunterSystem() {
     }
   };
 
-  useEffect(() => {
-    // Habit Reminder at 8 PM
-    const checkHabits = () => {
-      const now = new Date();
-      if (now.getHours() === 20 && now.getMinutes() === 0) {
-        const uncompleted = state.habits.filter(h => h.isPositive && !h.completedToday);
-        if (uncompleted.length > 0) {
-          sendLocalNotification('تذكير المساء', {
-            body: `لديك ${uncompleted.length} عادات إيجابية لم تكتمل بعد اليوم. لا تستسلم!`,
-            tag: 'habit-reminder'
-          });
-        }
-      }
-    };
-
-    const interval = setInterval(checkHabits, 60000);
-    return () => clearInterval(interval);
-  }, [state.habits, sendLocalNotification]);
-
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
 

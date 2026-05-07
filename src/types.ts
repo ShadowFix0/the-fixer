@@ -112,4 +112,5 @@ export interface GameState {
   lastSyncDate?: string; // YYYY-MM-DD
   systemMemory?: SystemMemory;
   systemName?: string;
+  timezone?: string;
 }

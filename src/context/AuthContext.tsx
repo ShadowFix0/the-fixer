@@ -24,8 +24,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    // 1. Check for persistent Guest user in localStorage
+    const savedGuest = localStorage.getItem('shadow_sovereign_guest_user');
+    if (savedGuest) {
+      setUser(JSON.parse(savedGuest));
+      setLoading(false);
+    }
+
+    // 2. Firebase Auth Listener
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        localStorage.removeItem('shadow_sovereign_guest_user'); // Clear guest if real user exists
+      } else if (!savedGuest) {
+        setUser(null);
+      }
       setLoading(false);
     });
 
@@ -52,12 +65,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginAsGuest = () => {
-    setUser({ uid: 'guest', displayName: 'صياد مجهول', photoURL: '' } as User);
+    const guestUser = { 
+      uid: 'guest', 
+      displayName: 'صياد مجهول', 
+      photoURL: '',
+      isAnonymous: true 
+    } as any;
+    
+    setUser(guestUser);
+    localStorage.setItem('shadow_sovereign_guest_user', JSON.stringify(guestUser));
     setLoading(false);
   };
 
   const logout = async () => {
     try {
+      localStorage.removeItem('shadow_sovereign_guest_user');
       await signOut(auth);
       window.location.reload();
     } catch (error) {
