@@ -22,6 +22,10 @@ const Login: React.FC = () => {
         <div className="pro-card p-10 bg-[#121216]/80 border-white/5 backdrop-blur-xl relative group">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent rounded-[2rem] pointer-events-none" />
           
+          <div className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-3 mb-8 text-center">
+            <span className="text-blue-400 font-black text-xs uppercase tracking-[0.3em]">System Updated V2.2</span>
+          </div>
+
           <div className="text-center mb-10">
             <motion.div 
               initial={{ scale: 0.5 }}
