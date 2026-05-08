@@ -12,11 +12,21 @@ interface Props {
 export default function WaterTracker({ data, onAdd, onSetGoal }: Props) {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState(data.targetLiters.toString());
+  
+  // Custom amount logic
+  const [customAmount, setCustomAmount] = useState(() => {
+    const saved = localStorage.getItem('water_tracker_custom_amount');
+    return saved ? parseInt(saved) : 250;
+  });
+
+  const handleCustomAmountChange = (val: string) => {
+    const num = parseInt(val) || 0;
+    setCustomAmount(num);
+    localStorage.setItem('water_tracker_custom_amount', num.toString());
+  };
 
   const progress = Math.min(100, (data.currentMl / (data.targetLiters * 1000)) * 100);
   const isGoalReached = progress >= 100;
-
-  const quickAmounts = [200, 300, 500];
 
   return (
     <div className="pro-card p-6 bg-[#121216]/60 border-blue-500/20 relative overflow-hidden group">
@@ -46,17 +56,17 @@ export default function WaterTracker({ data, onAdd, onSetGoal }: Props) {
         {/* Progress Bar & Stats */}
         <div>
           <div className="flex justify-between items-end mb-4 font-mono">
-          <div className="space-y-1">
-               <motion.span 
-                 key={data.currentMl}
-                 initial={{ scale: 0.8, opacity: 0.5 }}
-                 animate={{ scale: 1, opacity: 1 }}
-                 className="text-3xl font-black text-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.3)] inline-block"
-               >
-                 {(data.currentMl / 1000).toFixed(1)}
-               </motion.span>
-               <span className="text-[10px] font-bold text-gray-500 ml-2 uppercase">لتر</span>
-            </div>
+            <div className="space-y-1">
+                 <motion.span 
+                   key={data.currentMl}
+                   initial={{ scale: 0.8, opacity: 0.5 }}
+                   animate={{ scale: 1, opacity: 1 }}
+                   className="text-3xl font-black text-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.3)] inline-block"
+                 >
+                   {(data.currentMl / 1000).toFixed(1)}
+                 </motion.span>
+                 <span className="text-[10px] font-bold text-gray-500 ml-2 uppercase">لتر</span>
+              </div>
             <div className="text-right">
               <span className="text-[10px] font-bold text-gray-500 block mb-1">الهدف اليومي</span>
               <span className="text-white font-bold">{data.targetLiters}L</span>
@@ -76,14 +86,8 @@ export default function WaterTracker({ data, onAdd, onSetGoal }: Props) {
                 transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
               />
-              <motion.div 
-                animate={{ x: ['-100%', '100%'] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear", delay: 1 }}
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-              />
             </motion.div>
           </div>
-
         </div>
 
         {isEditingGoal ? (
@@ -99,7 +103,7 @@ export default function WaterTracker({ data, onAdd, onSetGoal }: Props) {
                 step="0.5"
                 value={newGoal}
                 onChange={(e) => setNewGoal(e.target.value)}
-                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-center focus:border-blue-500 transition-all outline-none"
+                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-center focus:border-blue-500 transition-all outline-none text-white"
               />
               <button 
                 onClick={() => {
@@ -113,17 +117,29 @@ export default function WaterTracker({ data, onAdd, onSetGoal }: Props) {
             </div>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
-            {quickAmounts.map((amount) => (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-1.5 bg-white/5 border border-white/5 rounded-2xl">
+              <div className="flex-1 flex items-center gap-2 px-3">
+                <input 
+                  type="number" 
+                  value={customAmount}
+                  onChange={(e) => handleCustomAmountChange(e.target.value)}
+                  className="w-full bg-transparent text-sm font-bold focus:outline-none text-blue-400 placeholder:text-gray-600"
+                  placeholder="الكمية..."
+                />
+                <span className="text-[10px] font-bold text-gray-600 uppercase">مل</span>
+              </div>
               <button
-                key={amount}
-                onClick={() => onAdd(amount)}
-                className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-blue-500/40 hover:bg-blue-500/10 transition-all group/btn active:scale-95"
+                onClick={() => onAdd(customAmount)}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all active:scale-95 shadow-lg shadow-blue-900/40 font-bold text-xs"
               >
-                <Plus size={14} className="text-blue-500 group-hover/btn:scale-125 transition-transform" />
-                <span className="text-[10px] font-black text-gray-400 group-hover/btn:text-white">{amount}مل</span>
+                <Plus size={16} />
+                إضافة
               </button>
-            ))}
+            </div>
+            <p className="text-[9px] text-center text-gray-500 font-bold uppercase tracking-widest">
+              قم بتعديل الكمية وسيتم حفظها تلقائياً
+            </p>
           </div>
         )}
 

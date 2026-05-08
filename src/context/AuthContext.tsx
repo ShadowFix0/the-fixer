@@ -41,13 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isPendingRedirect = localStorage.getItem('firebase_redirect_pending') === 'true';
 
       try {
+        // Only await if we are actually expecting a result or it's the first load
         const result = await getRedirectResult(auth);
-        localStorage.removeItem('firebase_redirect_pending'); // Clear it
-        
         if (result?.user) {
           if (isMounted) {
             setUser(result.user);
             localStorage.removeItem('shadow_sovereign_guest_user');
+            localStorage.removeItem('firebase_redirect_pending');
           }
           setLoading(false);
           return;
@@ -73,18 +73,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(null);
             }
             setLoading(false);
+          } else {
+             // We ARE pending a redirect, but onAuthStateChanged returned null.
+             // This is common on mobile while the result is being processed.
+             // We stay in loading state.
           }
         }
       });
 
-      // Emergency timeout: if still loading after 10 seconds, force stop
+      // Emergency timeout: increased to 20 seconds for slow mobile redirects
       setTimeout(() => {
-        if (isMounted && !firebase.auth?.currentUser && !localStorage.getItem('shadow_sovereign_guest_user')) {
-           // Wait, I can't use firebase.auth directly easily here, just use loading state
+        if (isMounted) {
+          setLoading(false);
+          if (isPendingRedirect) {
+            console.log("Redirect timeout reached");
+            localStorage.removeItem('firebase_redirect_pending');
+          }
         }
-        // Simplified: just force loading false after 10s if still stuck
-        if (isMounted) setLoading(false);
-      }, 10000);
+      }, 20000);
 
       return unsubscribe;
     };
@@ -100,13 +106,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     try {
       setLoading(true);
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
-      if (isMobile) {
-        localStorage.setItem('firebase_redirect_pending', 'true');
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        await signInWithPopup(auth, googleProvider);
+      // Store flag BEFORE any action
+      localStorage.setItem('firebase_redirect_pending', 'true');
+
+      // Try popup first on ALL devices. Modern mobile browsers often handle popups better than redirects
+      // if they are triggered by a direct click.
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        if (result.user) {
+          setUser(result.user);
+          localStorage.removeItem('shadow_sovereign_guest_user');
+          localStorage.removeItem('firebase_redirect_pending');
+          setLoading(false);
+        }
+      } catch (popupError: any) {
+        console.log("Popup failed, falling back to redirect:", popupError.code);
+        // If popup is blocked or fails, then fallback to redirect
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/cancelled-popup-request' ||
+            popupError.code === 'auth/popup-closed-by-user') {
+           await signInWithRedirect(auth, googleProvider);
+        } else {
+           localStorage.removeItem('firebase_redirect_pending');
+           setLoading(false);
+           throw popupError;
+        }
       }
     } catch (error) {
       console.error("Error signing in with Google", error);
