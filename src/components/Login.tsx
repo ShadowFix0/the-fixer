@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, Ghost } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const { loginWithGoogle, loginAsGuest } = useAuth();
+  const { loginWithGoogle, loginAsGuest, loading } = useAuth();
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 relative overflow-hidden" dir="rtl">
@@ -50,15 +50,23 @@ const Login: React.FC = () => {
             <div className="space-y-3">
               <button 
                 onClick={loginWithGoogle}
-                className="w-full py-3.5 bg-white text-black hover:bg-gray-200 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 shadow-xl hover:shadow-white/10 active:scale-[0.98]"
+                disabled={loading}
+                className="w-full py-3.5 bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 shadow-xl hover:shadow-white/10 active:scale-[0.98]"
               >
-                <LogIn size={20} />
-                تسجيل الدخول باستخدام جوجل
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <LogIn size={20} />
+                    تسجيل الدخول باستخدام جوجل
+                  </>
+                )}
               </button>
               
               <button 
                 onClick={loginAsGuest}
-                className="w-full py-3.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-lg shadow-blue-900/10"
+                disabled={loading}
+                className="w-full py-3.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/30 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-3 active:scale-[0.98] shadow-lg shadow-blue-900/10"
               >
                 <Ghost size={16} />
                 الدخول كضيف (وضع التجربة)

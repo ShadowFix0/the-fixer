@@ -65,10 +65,14 @@ export default function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 8 }}
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            localStorage.removeItem('firebase_redirect_pending');
+            localStorage.removeItem('shadow_sovereign_guest_user');
+            window.location.reload();
+          }}
           className="mt-8 px-4 py-2 border border-white/10 rounded-lg text-gray-500 text-[10px] hover:text-white transition-colors"
         >
-          Stuck? Reset System
+          النظام عالق؟ اضغط لإعادة الضبط
         </motion.button>
       </div>
     );

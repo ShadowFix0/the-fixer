@@ -27,8 +27,6 @@ const INITIAL_STATS: CharacterStats = {
   sense: 10,
 };
 
-const STORAGE_KEY = 'shadow_sovereign_v3_stable';
-
 const INITIAL_MEMORY: SystemMemory = {
   interests: [],
   priorities: [],
@@ -43,16 +41,23 @@ const DEFAULT_HABITS: Habit[] = [];
 
 const INITIAL_MISSIONS: Mission[] = [];
 
-
 export function useGameState() {
   const { user } = useAuth();
+  
+  // Use a dynamic storage key based on user UID to prevent data leakage
+  const getStorageKey = () => {
+    if (!user) return 'shadow_sovereign_v3_guest';
+    return `shadow_sovereign_v3_${user.uid}`;
+  };
+
   const [state, setState] = useState<GameState>(() => {
+    const key = getStorageKey();
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(key);
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error("Failed to parse saved game state:", e);
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(key);
     }
     return {
       character: INITIAL_STATS,
@@ -68,6 +73,34 @@ export function useGameState() {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
   });
+
+  // Re-load state when user changes
+  useEffect(() => {
+    const key = getStorageKey();
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setState(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse saved game state on user change:", e);
+      }
+    } else {
+      // Reset to initial if no saved state for this user
+      setState({
+        character: INITIAL_STATS,
+        habits: DEFAULT_HABITS,
+        activeBosses: [],
+        missions: INITIAL_MISSIONS,
+        shadows: [],
+        plans: [],
+        waterIntake: { targetLiters: 2, currentMl: 0 },
+        isDopamineFastActive: false,
+        lastResetDate: new Date().toISOString().split('T')[0],
+        systemMemory: INITIAL_MEMORY,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+    }
+  }, [user?.uid]);
 
 
   useEffect(() => {
