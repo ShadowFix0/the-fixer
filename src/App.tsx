@@ -182,6 +182,30 @@ function HunterSystem() {
 
     return () => clearInterval(timer);
   }, [activeTimedMission, sendLocalNotification]);
+
+  // Water Reminder Logic
+  useEffect(() => {
+    if (!state.waterIntake?.lastWaterTime) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const lastIntake = state.waterIntake.lastWaterTime;
+      const hourInMs = 60 * 60 * 1000;
+      const elapsed = now - lastIntake;
+      
+      // Remind every hour if not drinking
+      if (elapsed >= hourInMs && Math.floor(elapsed / 60000) % 60 === 0) {
+        if (state.waterIntake.currentMl < (state.waterIntake.targetLiters * 1000)) {
+          sendLocalNotification('تذكير الارتواء 💧', {
+            body: 'لقد مر وقت طويل منذ آخر مرة شربت فيها الماء. النظام ينصحك بشرب كوب الآن لزيادة حيويتك.',
+            tag: 'water-reminder'
+          });
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [state.waterIntake, sendLocalNotification]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const filteredHabits = state.habits.filter(h => 
@@ -467,7 +491,7 @@ function HunterSystem() {
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight leading-none uppercase">سيد الظلال</h1>
-                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">الإصدار 2.0</span>
+                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">الإصدار 2.5 (Cloud Sync)</span>
               </div>
             </div>
             <button className="lg:hidden text-gray-500 hover:text-white" onClick={() => setIsSidebarOpen(false)}>

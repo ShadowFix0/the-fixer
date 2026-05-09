@@ -50,6 +50,7 @@ export function useGameState() {
     return `shadow_sovereign_v3_${user.uid}`;
   };
 
+  const [isCloudLoaded, setIsCloudLoaded] = useState(false);
   const [state, setState] = useState<GameState>(() => {
     const key = getStorageKey();
     try {
@@ -66,7 +67,7 @@ export function useGameState() {
       missions: INITIAL_MISSIONS,
       shadows: [],
       plans: [],
-      waterIntake: { targetLiters: 2, currentMl: 0 },
+      waterIntake: { targetLiters: 2, currentMl: 0, lastWaterTime: Date.now() },
       isDopamineFastActive: false,
       lastResetDate: new Date().toISOString().split('T')[0],
       systemMemory: INITIAL_MEMORY,
@@ -93,12 +94,16 @@ export function useGameState() {
         missions: INITIAL_MISSIONS,
         shadows: [],
         plans: [],
-        waterIntake: { targetLiters: 2, currentMl: 0 },
+        waterIntake: { targetLiters: 2, currentMl: 0, lastWaterTime: Date.now() },
         isDopamineFastActive: false,
         lastResetDate: new Date().toISOString().split('T')[0],
         systemMemory: INITIAL_MEMORY,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
+    }
+    // If user logs out or switches to guest, we consider it "loaded" (initial)
+    if (!user || user.uid === 'guest') {
+      setIsCloudLoaded(true);
     }
   }, [user?.uid]);
 
@@ -111,7 +116,7 @@ export function useGameState() {
         ...prev,
         lastResetDate: today,
         habits: prev.habits.map(h => ({ ...h, completedToday: false, failedToday: false })),
-        waterIntake: { ...(prev.waterIntake || { targetLiters: 2 }), currentMl: 0 },
+        waterIntake: { ...(prev.waterIntake || { targetLiters: 2, lastWaterTime: Date.now() }), currentMl: 0 },
         character: { ...prev.character, hp: prev.character.maxHp } // Daily HP restore
       }));
     }
@@ -151,8 +156,10 @@ export function useGameState() {
           // If the document doesn't exist yet (new user), we'll create it soon via the other useEffect
           console.log("No cloud data found, using local/initial state");
         }
+        setIsCloudLoaded(true);
       }, (err) => {
         console.error("Error listening to Firestore updates:", err);
+        setIsCloudLoaded(true); // Stop blocking sync on error
       });
 
       return () => unsubscribe();
@@ -164,13 +171,13 @@ export function useGameState() {
     localStorage.setItem(getStorageKey(), JSON.stringify(state));
     
     // Sync to Cloud as source of truth
-    if (user && user.uid !== 'guest') {
+    if (user && user.uid !== 'guest' && isCloudLoaded) {
       const userRef = doc(db, 'users', user.uid);
       setDoc(userRef, state, { merge: true }).catch(err => {
         console.error("Error syncing to Firestore:", err);
       });
     }
-  }, [state, user]);
+  }, [state, user, isCloudLoaded]);
 
   const addXp = (amount: number) => {
     setState(prev => {
@@ -387,7 +394,8 @@ export function useGameState() {
       ...prev,
       waterIntake: {
         ...prev.waterIntake,
-        currentMl: (prev.waterIntake?.currentMl || 0) + ml
+        currentMl: (prev.waterIntake?.currentMl || 0) + ml,
+        lastWaterTime: Date.now()
       }
     }));
   };

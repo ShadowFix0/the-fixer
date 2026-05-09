@@ -96,6 +96,7 @@ export interface Plan {
 export interface WaterIntake {
   targetLiters: number;
   currentMl: number;
+  lastWaterTime: number;
 }
 
 export interface GameState {
