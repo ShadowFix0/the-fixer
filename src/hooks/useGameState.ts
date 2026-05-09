@@ -161,7 +161,7 @@ export function useGameState() {
 
   useEffect(() => {
     // Update LocalStorage for offline cache
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(getStorageKey(), JSON.stringify(state));
     
     // Sync to Cloud as source of truth
     if (user && user.uid !== 'guest') {
