@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGameState } from './hooks/useGameState';
 import { useNotifications } from './hooks/useNotifications';
@@ -19,6 +19,7 @@ import SystemChat from './components/SystemChat';
 import SystemMemoryDisplay from './components/SystemMemoryDisplay';
 import Plans from './components/Plans';
 import WaterTracker from './components/WaterTracker';
+import NotificationToast from './components/NotificationToast';
 import { 
   LayoutDashboard, 
   Swords, 
@@ -111,9 +112,56 @@ function HunterSystem() {
     setWaterGoal
   } = useGameState();
 
-  const { permission, requestPermission, sendLocalNotification } = useNotifications();
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const handleNavigateTab = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, []);
+
+  const {
+    permission,
+    requestPermission,
+    sendLocalNotification,
+    toasts,
+    dismissToast,
+    notifyLevelUp,
+    notifyRankUp,
+    notifyBossDefeated,
+    notifyStreakWarning,
+    notifyWaterReminder,
+    notifyMissionDeadline,
+    notifyDopamineFast,
+  } = useNotifications(handleNavigateTab);
+
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   
+  // ─── Level-Up / Rank-Up / Boss Detection via Refs ──────────────────────────
+  const prevLevelRef = useRef(state.character.level);
+  const prevRankRef = useRef(state.character.rank);
+  const prevBossCountRef = useRef(state.activeBosses.length);
+
+  useEffect(() => {
+    if (state.character.level > prevLevelRef.current) {
+      notifyLevelUp(state.character.level);
+    }
+    prevLevelRef.current = state.character.level;
+  }, [state.character.level, notifyLevelUp]);
+
+  useEffect(() => {
+    if (prevRankRef.current !== state.character.rank && prevRankRef.current !== 'E') {
+      notifyRankUp(state.character.rank);
+    }
+    prevRankRef.current = state.character.rank;
+  }, [state.character.rank, notifyRankUp]);
+
+  useEffect(() => {
+    // If a boss was removed (defeated), fire notification
+    if (prevBossCountRef.current > state.activeBosses.length && prevBossCountRef.current > 0) {
+      notifyBossDefeated('زعيم العادة السيئة');
+    }
+    prevBossCountRef.current = state.activeBosses.length;
+  }, [state.activeBosses.length, notifyBossDefeated]);
+
   const [showSetup, setShowSetup] = useState(false);
   const [playerInput, setPlayerInput] = useState('');
   const [systemInput, setSystemInput] = useState('');
@@ -132,7 +180,7 @@ function HunterSystem() {
     }
   };
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // activeTab is now declared above (before useNotifications)
   const [searchTerm, setSearchTerm] = useState('');
 
   const activeTimedMission = state.missions.find(m => m.startTime && !m.isCompleted);
@@ -158,11 +206,12 @@ function HunterSystem() {
 
       if (remaining <= 0) {
         setGlobalTimeLeft('انتهى الوقت');
-        if (remaining > -2000) { // Only notify once when it just ended
+        if (remaining > -2000) {
           sendLocalNotification('انتهت المهمة!', {
             body: `لقد انتهى الوقت المخصص لمهمة: ${activeTimedMission.title}`,
-            tag: 'mission-end'
-          });
+            tag: 'mission-end',
+            type: 'mission_deadline',
+          } as any);
         }
         clearInterval(timer);
       } else {
@@ -170,18 +219,14 @@ function HunterSystem() {
         const seconds = Math.floor((remaining % 60000) / 1000);
         setGlobalTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
         
-        // Notify at 1 minute mark
         if (minutes === 1 && seconds === 0) {
-          sendLocalNotification('بقي دقيقة واحدة!', {
-            body: `مهمتك "${activeTimedMission.title}" على وشك الانتهاء.`,
-            tag: 'mission-warning'
-          });
+          notifyMissionDeadline(activeTimedMission.title, 1);
         }
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [activeTimedMission, sendLocalNotification]);
+  }, [activeTimedMission, sendLocalNotification, notifyMissionDeadline]);
 
   // Water Reminder Logic
   useEffect(() => {
@@ -196,16 +241,13 @@ function HunterSystem() {
       // Remind every hour if not drinking
       if (elapsed >= hourInMs && Math.floor(elapsed / 60000) % 60 === 0) {
         if (state.waterIntake.currentMl < (state.waterIntake.targetLiters * 1000)) {
-          sendLocalNotification('تذكير الارتواء 💧', {
-            body: 'لقد مر وقت طويل منذ آخر مرة شربت فيها الماء. النظام ينصحك بشرب كوب الآن لزيادة حيويتك.',
-            tag: 'water-reminder'
-          });
+          notifyWaterReminder();
         }
       }
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, [state.waterIntake, sendLocalNotification]);
+  }, [state.waterIntake, notifyWaterReminder]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const filteredHabits = state.habits.filter(h => 
@@ -459,10 +501,13 @@ function HunterSystem() {
         )}
       </AnimatePresence>
 
+      {/* Notification Toast Overlay */}
+      <NotificationToast toasts={toasts} onDismiss={dismissToast} />
+
       {/* Dopamine Fast Overlay */}
       <DopamineFast 
         isActive={state.isDopamineFastActive} 
-        onDeactivate={() => setDopamineFast(false)} 
+        onDeactivate={() => { setDopamineFast(false); notifyDopamineFast('end'); }} 
       />
 
       {/* Sidebar Overlay for Mobile */}
@@ -554,7 +599,7 @@ function HunterSystem() {
                 <span className="text-xs font-bold uppercase tracking-wider text-gray-400">صيام الدوبامين</span>
              </div>
              <button 
-                onClick={() => setDopamineFast(true)}
+                onClick={() => { setDopamineFast(true); notifyDopamineFast('start'); }}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-900/40"
              >
                تشغيل وضع التركيز

@@ -1,3 +1,13 @@
+/**
+ * test-push — Manual test endpoint for push notifications.
+ *
+ * POST /api/test-push
+ * Body: { message, type? }
+ *
+ * Sends a push notification to ALL subscribed devices.
+ * Automatically cleans up expired subscriptions.
+ */
+
 import type { Context, Config } from "@netlify/functions";
 import webpush from "web-push";
 import { initializeApp } from "firebase/app";
@@ -34,24 +44,35 @@ export default async (req: Request, context: Context) => {
   }
 
   try {
-    const { message } = await req.json();
-    const payload = JSON.stringify({ title: "Shadow Sovereign", body: message });
+    const { message, type } = await req.json();
+    const payload = JSON.stringify({
+      title: "Shadow Sovereign",
+      body: message,
+      type: type || "system"
+    });
 
     const querySnapshot = await getDocs(collection(db, "push_subscriptions"));
+    let sent = 0;
+    let cleaned = 0;
+
     const promises = querySnapshot.docs.map(async (d) => {
       const sub = d.data();
-      return webpush.sendNotification(sub as any, payload).catch(async (err) => {
-        console.error("Error sending notification:", err);
+      try {
+        await webpush.sendNotification(sub as any, payload);
+        sent++;
+      } catch (err: any) {
+        console.error("Error sending notification:", err.statusCode || err.message);
         // If the subscription is expired or invalid, remove it
         if (err.statusCode === 410 || err.statusCode === 404) {
           await deleteDoc(doc(db, "push_subscriptions", d.id));
+          cleaned++;
         }
-      });
+      }
     });
 
     await Promise.all(promises);
 
-    return new Response(JSON.stringify({ status: "Notification sent" }), {
+    return new Response(JSON.stringify({ status: "ok", sent, cleaned }), {
       status: 200,
       headers: { "Content-Type": "application/json" }
     });
