@@ -574,7 +574,7 @@ function HunterSystem() {
 
       {/* Modern Sidebar */}
       <aside className={`
-        fixed inset-y-0 right-0 z-[70] w-72 bg-[#121216]/95 lg:bg-[#121216] border-l border-white/5 flex flex-col backdrop-blur-md transition-transform duration-300 lg:static lg:translate-x-0
+        fixed inset-y-0 right-0 z-[70] w-72 bg-[#121216]/95 lg:bg-[#121216] border-l border-white/5 flex flex-col backdrop-blur-md transition-transform duration-300 lg:static lg:translate-x-0 overflow-y-auto
         ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
         <div className="p-8">
@@ -631,11 +631,17 @@ function HunterSystem() {
               onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }} 
             />
             <NavItem 
-              icon={<FileText size={18} />} 
-              label="الخطط الاستراتيجية" 
               active={activeTab === 'plans'} 
               onClick={() => { setActiveTab('plans'); setIsSidebarOpen(false); }} 
             />
+            <div className="pt-4 mt-4 border-t border-white/5">
+              <NavItem 
+                icon={<Bell size={18} className="text-amber-500" />} 
+                label="اختبار الإشعارات" 
+                active={false}
+                onClick={() => { testPush(); setIsSidebarOpen(false); }} 
+              />
+            </div>
           </nav>
         </div>
 
