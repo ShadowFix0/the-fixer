@@ -385,6 +385,23 @@ export function useGameState() {
     setState(prev => ({ ...prev, plans: [...(prev.plans || []), plan] }));
   };
 
+  const togglePlanStep = (planId: string, stepId: string) => {
+    setState(prev => ({
+      ...prev,
+      plans: prev.plans.map(p => {
+        if (p.id !== planId) return p;
+        const steps = p.steps.map(s => s.id === stepId ? { ...s, isCompleted: !s.isCompleted } : s);
+        // Find the next uncompleted step to set as current
+        const nextStepIndex = steps.findIndex(s => !s.isCompleted);
+        return { 
+          ...p, 
+          steps, 
+          currentStepIndex: nextStepIndex === -1 ? steps.length - 1 : nextStepIndex 
+        };
+      })
+    }));
+  };
+
   const deletePlan = (id: string) => {
     setState(prev => ({ ...prev, plans: prev.plans.filter(p => p.id !== id) }));
   };
@@ -410,10 +427,10 @@ export function useGameState() {
     }));
   };
 
-  const updatePlan = (id: string, newContent: string) => {
+  const updatePlan = (id: string, updates: Partial<Plan>) => {
     setState(prev => ({
       ...prev,
-      plans: prev.plans.map(p => p.id === id ? { ...p, content: newContent } : p)
+      plans: prev.plans.map(p => p.id === id ? { ...p, ...updates } : p)
     }));
   };
 
@@ -438,6 +455,7 @@ export function useGameState() {
     addPlan,
     deletePlan,
     updatePlan,
+    togglePlanStep,
     updateWaterIntake,
     setWaterGoal,
     markMissionReminderSent: (missionId: string) => {

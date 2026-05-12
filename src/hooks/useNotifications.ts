@@ -306,17 +306,47 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
     notifyWaterReminder,
     notifyAIInsight,
     notifyDopamineFast,
-    testPush: () => {
+    testPush: async () => {
       addToast({
-        title: '📡 جاري الاتصال بالسيرفر...',
-        body: 'النظام يحاول إرسال إشارة Push لتأكيد الاتصال.',
+        title: '🔍 بدء التشخيص...',
+        body: 'نتأكد الآن من جاهزية النظام وجهازك.',
         type: 'system'
       });
-      return sendServerPush({
-        title: '🛡️ اختبار النظام',
-        body: 'إذا رأيت هذا، فنظام إشعارات سيد الظلال يعمل بكفاءة عالية.',
-        type: 'system'
-      });
+      
+      try {
+        if (!('serviceWorker' in navigator)) {
+          addToast({ title: '❌ خطأ', body: 'متصفحك لا يدعم الـ Service Workers!', type: 'system' });
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        addToast({ title: '✅ SW Ready', body: 'نظام التشغيل في الخلفية جاهز.', type: 'system' });
+
+        if (Notification.permission !== 'granted') {
+          addToast({ title: '⚠️ تنبيه', body: 'يرجى السماح بالإشعارات في المتصفح.', type: 'system' });
+          const res = await Notification.requestPermission();
+          if (res !== 'granted') return;
+        }
+
+        addToast({ title: '📡 جاري المزامنة', body: 'نرسل الآن هويتك الرقمية للسيرفر...', type: 'system' });
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+
+        await registerSubscription(subscription);
+        addToast({ title: '✅ تمت المزامنة', body: 'جهازك الآن مربوط بالسيرفر. نرسل الإشارة...', type: 'system' });
+
+        await sendServerPush({
+          title: '🛡️ اختبار النظام',
+          body: 'إذا رأيت هذا، فنظام إشعارات سيد الظلال يعمل بكفاءة عالية.',
+          type: 'system'
+        });
+      } catch (err: any) {
+        console.error("Test Push Failed:", err);
+        addToast({ title: '❌ فشل الاختبار', body: `خطأ: ${err.message || 'غير معروف'}`, type: 'system' });
+      }
     }
   };
 }

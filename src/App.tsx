@@ -107,7 +107,7 @@ function HunterSystem() {
     setupNames,
     addPlan,
     deletePlan,
-    updatePlan,
+    togglePlanStep,
     updateWaterIntake,
     setWaterGoal,
     markMissionReminderSent,
@@ -478,9 +478,9 @@ function HunterSystem() {
           <div className="max-w-6xl mx-auto h-full">
             <Plans 
               plans={state.plans || []} 
-              onAddPlan={addPlan} 
-              onDeletePlan={deletePlan} 
-              onUpdatePlan={updatePlan}
+              onAdd={addPlan} 
+              onDelete={deletePlan} 
+              onToggleStep={togglePlanStep}
             />
           </div>
         );
@@ -585,7 +585,7 @@ function HunterSystem() {
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight leading-none uppercase">سيد الظلال</h1>
-                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">تحديث: صوت العاهل (V2.8)</span>
+                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">تحديث: طريق السيادة (V3.0)</span>
               </div>
             </div>
             <button className="lg:hidden text-gray-500 hover:text-white" onClick={() => setIsSidebarOpen(false)}>

@@ -20,10 +20,13 @@ if (vapidPublicKey && vapidPrivateKey) {
     vapidPublicKey,
     vapidPrivateKey
   );
+  console.log(">>> [System] VAPID Keys Loaded Successfully.");
+} else {
+  console.warn(">>> [System] Warning: VAPID Keys missing in .env.");
 }
 
-// In-memory storage for demo. In production, use a database.
-const subscriptions: any[] = [];
+// In-memory storage for local testing
+let subscriptions: any[] = [];
 
 async function startServer() {
   const app = express();
@@ -31,26 +34,81 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API for Push Notifications
+  // Log all requests
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
+  // API for Push Notifications Subscription
   app.post("/api/subscribe", (req, res) => {
     const subscription = req.body;
-    subscriptions.push(subscription);
+    console.log(`>>> [System] Subscription Request Received for user: ${subscription.userId}`);
+    
+    // Check if subscription already exists
+    const exists = subscriptions.find(s => s.endpoint === subscription.endpoint);
+    if (!exists) {
+      subscriptions.push(subscription);
+      console.log(`>>> [System] NEW subscription added. Total active: ${subscriptions.length}`);
+    } else {
+      console.log(`>>> [System] Subscription already exists. Total active: ${subscriptions.length}`);
+    }
     res.status(201).json({ status: "ok" });
   });
 
-  // Echo endpoint to test push
-  app.post("/api/test-push", async (req, res) => {
-    const { message } = req.body;
-    const payload = JSON.stringify({ title: "Shadow Sovereign", body: message });
+  // API for Sending Targeted Notification
+  app.post("/api/send-notification", async (req, res) => {
+    const { title, body, type, data } = req.body;
+    console.log(`>>> [System] Attempting to send notification: "${title}"`);
+
+    const payload = JSON.stringify({
+      title: title || "Shadow Sovereign",
+      body: body || "لديك تنبيه جديد من النظام",
+      type: type || "system",
+      ...(data || {}),
+    });
+
+    if (subscriptions.length === 0) {
+      console.warn(">>> [System] No active subscriptions found.");
+      return res.status(200).json({ status: "no_subscribers", sent: 0 });
+    }
+
+    let sent = 0;
+    let failed = 0;
 
     const promises = subscriptions.map((sub) =>
-      webpush.sendNotification(sub, payload).catch((err) => {
-        console.error("Error sending notification:", err);
+      webpush.sendNotification(sub, payload).then(() => {
+        sent++;
+      }).catch((err) => {
+        console.error(`>>> [System] Push error: ${err.statusCode || err.message}`);
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          subscriptions = subscriptions.filter(s => s.endpoint !== sub.endpoint);
+        }
+        failed++;
       })
     );
 
     await Promise.all(promises);
-    res.status(200).json({ status: "Notification sent" });
+    console.log(`>>> [System] Push Result: ${sent} sent, ${failed} failed.`);
+    res.status(200).json({ status: "ok", sent, failed });
+  });
+
+  // Legacy Test Endpoint
+  app.post("/api/test-push", async (req, res) => {
+    const { message } = req.body;
+    const payload = JSON.stringify({ 
+      title: "Shadow Sovereign Test", 
+      body: message || "اختبار نظام الإشعارات",
+      type: "system" 
+    });
+
+    let sent = 0;
+    const promises = subscriptions.map((sub) =>
+      webpush.sendNotification(sub, payload).then(() => sent++).catch(err => console.error(err))
+    );
+
+    await Promise.all(promises);
+    res.status(200).json({ status: "ok", sent });
   });
 
   // Vite middleware for development

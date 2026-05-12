@@ -87,11 +87,20 @@ export interface SystemMemory {
   otherNotes: string[];
 }
 
+export interface PlanStep {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  type: 'mission' | 'milestone' | 'boss';
+}
+
 export interface Plan {
   id: string;
   title: string;
-  content: string;
+  description?: string;
   category: string;
+  steps: PlanStep[];
+  currentStepIndex: number;
   createdAt: number;
 }
 
