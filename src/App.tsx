@@ -536,7 +536,7 @@ function HunterSystem() {
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight leading-none uppercase">سيد الظلال</h1>
-                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">تحديث: صوت العاهل (V2.5)</span>
+                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">تحديث: صوت العاهل (V2.6)</span>
               </div>
             </div>
             <button className="lg:hidden text-gray-500 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
