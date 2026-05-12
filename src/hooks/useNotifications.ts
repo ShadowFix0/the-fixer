@@ -306,6 +306,11 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
     notifyWaterReminder,
     notifyAIInsight,
     notifyDopamineFast,
+    testPush: () => sendServerPush({
+      title: '🛡️ اختبار النظام',
+      body: 'إذا رأيت هذا، فنظام إشعارات سيد الظلال يعمل بكفاءة عالية.',
+      type: 'system'
+    })
   };
 }
 

@@ -440,5 +440,11 @@ export function useGameState() {
     updatePlan,
     updateWaterIntake,
     setWaterGoal,
+    markMissionReminderSent: (missionId: string) => {
+      setState(prev => ({
+        ...prev,
+        missions: prev.missions.map(m => m.id === missionId ? { ...m, reminderSent: true } : m)
+      }));
+    },
   };
 }

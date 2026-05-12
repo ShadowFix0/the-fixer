@@ -109,7 +109,8 @@ function HunterSystem() {
     deletePlan,
     updatePlan,
     updateWaterIntake,
-    setWaterGoal
+    setWaterGoal,
+    markMissionReminderSent,
   } = useGameState();
 
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -131,6 +132,7 @@ function HunterSystem() {
     notifyWaterReminder,
     notifyMissionDeadline,
     notifyDopamineFast,
+    testPush,
   } = useNotifications(handleNavigateTab);
 
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
@@ -248,6 +250,53 @@ function HunterSystem() {
 
     return () => clearInterval(interval);
   }, [state.waterIntake, notifyWaterReminder]);
+
+  // Mission Reminder Check (runs every minute)
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date();
+      
+      state.missions.forEach(mission => {
+        if (mission.isCompleted || mission.reminderSent) return;
+
+        // 1. Timed Missions (using startTime and durationMinutes)
+        if (mission.startTime && mission.durationMinutes && mission.reminderTimeMinutes) {
+          const deadline = mission.startTime + (mission.durationMinutes * 60 * 1000);
+          const reminderThreshold = deadline - (mission.reminderTimeMinutes * 60 * 1000);
+          
+          if (Date.now() >= reminderThreshold && Date.now() < deadline) {
+            notifyMissionDeadline(mission.title, mission.reminderTimeMinutes);
+            markMissionReminderSent(mission.id);
+          }
+        }
+
+        // 2. Scheduled Missions (using dueDate and dueTime)
+        if (mission.dueDate && mission.dueTime && mission.reminderTimeMinutes) {
+          try {
+            const [year, month, day] = mission.dueDate.split('-').map(Number);
+            const [hour, minute] = mission.dueTime.split(':').map(Number);
+            const deadline = new Date(year, month - 1, day, hour, minute);
+            
+            const diffMs = deadline.getTime() - now.getTime();
+            const diffMin = Math.floor(diffMs / 60000);
+
+            if (diffMin <= mission.reminderTimeMinutes && diffMin > 0) {
+              notifyMissionDeadline(mission.title, diffMin);
+              markMissionReminderSent(mission.id);
+            }
+          } catch (e) {
+            console.error("Error parsing mission date:", e);
+          }
+        }
+      });
+    };
+
+    const interval = setInterval(checkReminders, 60000);
+    checkReminders(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [state.missions, notifyMissionDeadline, markMissionReminderSent]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const filteredHabits = state.habits.filter(h => 
@@ -603,6 +652,21 @@ function HunterSystem() {
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-900/40"
              >
                تشغيل وضع التركيز
+             </button>
+          </div>
+
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-6">
+             <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
+                  <Swords size={14} />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">اختبار الإشعارات</span>
+             </div>
+             <button 
+                onClick={() => testPush()}
+                className="w-full py-2.5 border border-amber-500/30 hover:bg-amber-500/10 text-amber-400 rounded-xl text-xs font-bold transition-all"
+             >
+               فحص اتصال النظام
              </button>
           </div>
 

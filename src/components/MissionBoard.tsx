@@ -31,7 +31,8 @@ export default function MissionBoard({ missions, onComplete, onStart, onDelete, 
     type: 'Quick' as 'Quick' | 'Fated',
     dueDate: '',
     dueTime: '',
-    durationMinutes: 0
+    durationMinutes: 0,
+    reminderTimeMinutes: 0
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -78,11 +79,13 @@ export default function MissionBoard({ missions, onComplete, onStart, onDelete, 
       goldReward: newMission.type === 'Fated' ? 100 : 20,
       dueDate: newMission.dueDate,
       dueTime: newMission.dueTime,
-      durationMinutes: newMission.durationMinutes > 0 ? newMission.durationMinutes : undefined
+      durationMinutes: newMission.durationMinutes > 0 ? newMission.durationMinutes : undefined,
+      reminderTimeMinutes: newMission.reminderTimeMinutes > 0 ? newMission.reminderTimeMinutes : undefined,
+      reminderSent: false
     };
 
     onAddMissions([mission]);
-    setNewMission({ title: '', description: '', type: 'Quick', dueDate: '', dueTime: '', durationMinutes: 0 });
+    setNewMission({ title: '', description: '', type: 'Quick', dueDate: '', dueTime: '', durationMinutes: 0, reminderTimeMinutes: 0 });
     setShowAddForm(false);
   };
 
@@ -200,6 +203,16 @@ export default function MissionBoard({ missions, onComplete, onStart, onDelete, 
                     onChange={(e) => setNewMission({...newMission, durationMinutes: parseInt(e.target.value) || 0})}
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">التنبيه قبل الانتهاء (دقائق)</label>
+                  <input 
+                    type="number" 
+                    placeholder="مثلاً: 10"
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-all font-light"
+                    value={newMission.reminderTimeMinutes || ''}
+                    onChange={(e) => setNewMission({...newMission, reminderTimeMinutes: parseInt(e.target.value) || 0})}
+                  />
+                </div>
               </div>
 
               <div className="pt-4">
@@ -302,6 +315,12 @@ function MissionCard({ mission, onComplete, onStart, onDelete }: { mission: Miss
               <div className="flex items-center gap-2 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-md text-[8px] font-bold text-amber-500 uppercase tracking-widest">
                 <Calendar size={10} />
                 <span>{mission.dueDate || 'اليوم'} @ {mission.dueTime || '--:--'}</span>
+              </div>
+            )}
+            {mission.reminderTimeMinutes && !mission.isCompleted && (
+              <div className="flex items-center gap-2 px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 rounded-md text-[8px] font-bold text-purple-400 uppercase tracking-widest">
+                <Clock size={10} />
+                <span>تنبيه قبل {mission.reminderTimeMinutes} د</span>
               </div>
             )}
           </div>

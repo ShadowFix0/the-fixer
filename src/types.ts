@@ -63,6 +63,8 @@ export interface Mission {
   startTime?: number;
   dueDate?: string;
   dueTime?: string;
+  reminderTimeMinutes?: number; // How many minutes before deadline to notify
+  reminderSent?: boolean;
 }
 
 export interface Shadow {
