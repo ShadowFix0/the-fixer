@@ -306,11 +306,18 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
     notifyWaterReminder,
     notifyAIInsight,
     notifyDopamineFast,
-    testPush: () => sendServerPush({
-      title: '🛡️ اختبار النظام',
-      body: 'إذا رأيت هذا، فنظام إشعارات سيد الظلال يعمل بكفاءة عالية.',
-      type: 'system'
-    })
+    testPush: () => {
+      addToast({
+        title: '📡 جاري الاتصال بالسيرفر...',
+        body: 'النظام يحاول إرسال إشارة Push لتأكيد الاتصال.',
+        type: 'system'
+      });
+      return sendServerPush({
+        title: '🛡️ اختبار النظام',
+        body: 'إذا رأيت هذا، فنظام إشعارات سيد الظلال يعمل بكفاءة عالية.',
+        type: 'system'
+      });
+    }
   };
 }
 

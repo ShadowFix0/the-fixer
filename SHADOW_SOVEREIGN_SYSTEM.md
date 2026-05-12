@@ -1,5 +1,5 @@
 # Shadow Sovereign System: The Sovereign's Voice
-> **Update Version:** 2.6 (The Sovereign's Voice / صوت العاهل)
+> **Update Version:** 2.8 (The Sovereign's Voice / صوت العاهل)
 
 ## 1. Concept & Theme
 **Shadow Sovereign** is a high-end, gamified personal productivity and habit-tracking ecosystem inspired by the "Solo Leveling" manhwa. It transforms real-life self-improvement into a professional RPG experience where a "System" monitors, guides, and motivates the user's growth.

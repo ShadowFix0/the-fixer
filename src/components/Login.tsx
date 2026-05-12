@@ -23,7 +23,7 @@ const Login: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent rounded-[2rem] pointer-events-none" />
           
           <div className="bg-blue-600/20 border border-blue-500/30 rounded-xl p-3 mb-8 text-center">
-            <span className="text-blue-400 font-black text-xs uppercase tracking-[0.3em]">System Updated V2.5</span>
+            <span className="text-blue-400 font-black text-xs uppercase tracking-[0.3em]">System Updated V2.8</span>
           </div>
 
           <div className="text-center mb-10">
@@ -84,7 +84,7 @@ const Login: React.FC = () => {
         </div>
 
         <div className="mt-8 text-center">
-          <span className="text-[10px] text-gray-700 font-bold uppercase tracking-[0.3em]">Shadow Sovereign System v2.5 (Cloud & Water)</span>
+          <span className="text-[10px] text-gray-700 font-bold uppercase tracking-[0.3em]">Shadow Sovereign System v2.8 (Sovereign's Voice)</span>
         </div>
       </motion.div>
     </div>
