@@ -25,14 +25,16 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: 'https://img.icons8.com/ios-filled/192/3b82f6/ghost.png',
+              src: '/icon.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any maskable'
             },
             {
-              src: 'https://img.icons8.com/ios-filled/512/3b82f6/ghost.png',
+              src: '/icon.png',
               sizes: '512x512',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any maskable'
             }
           ]
         },
