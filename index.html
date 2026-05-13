@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shadow Sovereign | سيد الظلال</title>
     <script>
-      // Clear any old service workers that might cause black screen/cache issues
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for(let registration of registrations) {
-            registration.unregister();
-          }
-        });
-      }
+      // Force-clear all caches and service workers (fixes black screen on iOS)
+      (async function() {
+        if ('caches' in self) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map(r => r.unregister()));
+        }
+      })();
     </script>
   </head>
   <body>

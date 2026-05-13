@@ -37,13 +37,15 @@ export default defineConfig(({mode}) => {
           ]
         },
         devOptions: {
-          enabled: true
+          enabled: true,
+          type: 'module'
         }
       })
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY),
+      'import.meta.env.VITE_GEMINI_API_KEY_BACKUP': JSON.stringify(env.GEMINI_API_KEY_BACKUP || env.VITE_GEMINI_API_KEY_BACKUP),
       'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY),
     },
     resolve: {

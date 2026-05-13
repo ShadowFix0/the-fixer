@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Component } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGameState } from './hooks/useGameState';
 import { useNotifications } from './hooks/useNotifications';
@@ -37,13 +37,46 @@ import {
   Clock,
   BellRing,
   LogOut,
-  FileText
+  FileText,
+  Map as MapIcon
 } from 'lucide-react';
+
+class ErrorBoundary extends Component<{children: React.ReactNode}, {error: Error | null}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-black text-white flex items-center justify-center p-8" dir="rtl">
+          <div className="max-w-md text-center">
+            <div className="w-16 h-16 bg-red-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <h2 className="text-xl font-bold mb-2">النظام واجه خللاً</h2>
+            <p className="text-sm text-gray-500 mb-6 font-mono break-all">{this.state.error.message}</p>
+            <button onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              className="px-6 py-3 bg-blue-600 rounded-xl text-sm font-bold hover:bg-blue-500 transition-all">
+              إعادة تحميل النظام
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const { user, loading: authLoading } = useAuth();
 
   if (authLoading) {
     return (
+      <ErrorBoundary>
       <div className="min-h-screen bg-[#0A0A0C] flex flex-col items-center justify-center gap-6">
         <motion.div 
           animate={{ 
@@ -76,14 +109,15 @@ export default function App() {
           النظام عالق؟ اضغط لإعادة الضبط
         </motion.button>
       </div>
+    </ErrorBoundary>
     );
   }
 
   if (!user) {
-    return <Login />;
+    return <ErrorBoundary><Login /></ErrorBoundary>;
   }
 
-  return <HunterSystem />;
+  return <ErrorBoundary><HunterSystem /></ErrorBoundary>;
 }
 
 function HunterSystem() {
@@ -585,7 +619,7 @@ function HunterSystem() {
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-tight leading-none uppercase">سيد الظلال</h1>
-                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">تحديث: طريق السيادة (V3.0)</span>
+                <span className="text-[10px] text-blue-500 font-bold tracking-widest uppercase">تحديث: طريق السيادة (V3.2)</span>
               </div>
             </div>
             <button className="lg:hidden text-gray-500 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
@@ -631,6 +665,8 @@ function HunterSystem() {
               onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }} 
             />
             <NavItem 
+              icon={<MapIcon size={18} />} 
+              label="خرائط الطريق" 
               active={activeTab === 'plans'} 
               onClick={() => { setActiveTab('plans'); setIsSidebarOpen(false); }} 
             />

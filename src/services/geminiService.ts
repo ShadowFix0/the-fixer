@@ -5,7 +5,26 @@
 
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+const PRIMARY_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+const BACKUP_KEY = import.meta.env.VITE_GEMINI_API_KEY_BACKUP || '';
+
+function createAIInstance(apiKey: string) {
+  try {
+    return new GoogleGenAI({ apiKey });
+  } catch {
+    return null;
+  }
+}
+
+const ai = PRIMARY_KEY ? createAIInstance(PRIMARY_KEY) : null;
+let _aiBackup: any = null;
+
+function getBackupAI() {
+  if (_aiBackup === null && BACKUP_KEY) {
+    _aiBackup = createAIInstance(BACKUP_KEY);
+  }
+  return _aiBackup;
+}
 
 const MISSION_SCHEMA = {
   type: Type.OBJECT,
@@ -32,8 +51,15 @@ const MISSION_SCHEMA = {
 // We now use a single robust sequence for all requests to ensure maximum stability.
 const MODELS_STABLE = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-3-flash-preview"];
 
-async function generateContentWithFallback(config: any) {
+async function generateContentWithFallback(config: any, useBackup = false) {
   let lastError: any = null;
+  const backupAI = getBackupAI();
+  const aiInstance = useBackup ? backupAI : ai;
+  const keyLabel = useBackup ? '[Backup Key]' : '[Primary Key]';
+  
+  if (!aiInstance) {
+    throw new Error(useBackup ? "Backup API key is invalid or missing" : "Primary API key is invalid or missing");
+  }
   
   for (const [index, modelName] of MODELS_STABLE.entries()) {
     const controller = new AbortController();
@@ -41,12 +67,13 @@ async function generateContentWithFallback(config: any) {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await ai.models.generateContent({
+      const response = await aiInstance.models.generateContent({
         ...config,
         model: modelName,
         signal: controller.signal
       });
       clearTimeout(timeoutId);
+      if (useBackup) console.log(`[System] Using backup API key successfully`);
       return response;
     } catch (error: any) {
       clearTimeout(timeoutId);
@@ -56,17 +83,28 @@ async function generateContentWithFallback(config: any) {
       const name = error.name;
       
       if (name === 'AbortError' || status === 503 || status === 429 || status === 404 || status === 500) {
-        console.warn(`[System] Stable fallback activated: ${modelName} encountered issues.`);
+        console.warn(`${keyLabel} Stable fallback activated: ${modelName} encountered issues.`);
         continue;
+      }
+      
+      if (!useBackup && backupAI) {
+        console.warn(`${keyLabel} Failed, switching to backup key...`);
+        return generateContentWithFallback(config, true);
       }
       throw error;
     }
   }
+  
+  if (!useBackup && backupAI) {
+    console.warn(`[System] Primary key exhausted, trying backup key...`);
+    return generateContentWithFallback(config, true);
+  }
+  
   throw lastError;
 }
 
 export async function chatWithSystem(message: string, history: any[], systemMemory?: any) {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) {
+  if (!ai && !getBackupAI()) {
     throw new Error("GEMINI_API_KEY is missing.");
   }
 
@@ -150,6 +188,62 @@ export async function generateAIPlan(topic: string) {
   }
 }
 
+export async function generatePlanStages(topic: string) {
+  try {
+    const config = {
+      contents: [{ role: 'user', parts: [{ text: `قم بإنشاء مراحل تفصيلية لخطة: ${topic}` }] }],
+      config: {
+        systemInstruction: `أنت مخطط طريق السيادة. مهمتك هي تقسيم أي هدف إلى مراحل (Stages).
+لكل مرحلة: عنوان، قائمة مهام مطلوبة، ومكان/مصدر يمكن إيجاد المعلومة أو الأداة فيه.
+كن دقيقاً وواقعياً.
+اللغة: العربية.
+الرد بصيغة JSON فقط بهذا الشكل:
+{
+  "stages": [
+    {
+      "title": "عنوان المرحلة",
+      "tasks": ["مهمة 1", "مهمة 2", "مهمة 3"],
+      "location": "مكان إيجاد المتطلبات"
+    }
+  ]
+}
+يجب ألا يقل عدد المراحل عن 3 ولا يزيد عن 8.`,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            stages: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  tasks: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                  },
+                  location: { type: Type.STRING }
+                },
+                required: ["title", "tasks", "location"]
+              }
+            }
+          },
+          required: ["stages"]
+        },
+        temperature: 0.7,
+      }
+    };
+
+    const response = await generateContentWithFallback(config);
+    const text = response.text || "{}";
+    const data = JSON.parse(text);
+    return data.stages || [];
+  } catch (error) {
+    console.error("Plan Stages Generation Error:", error);
+    return [];
+  }
+}
+
 export async function refineAIPlan(currentPlan: string, feedback: string) {
   try {
     const config = {
@@ -178,8 +272,7 @@ export async function refineAIPlan(currentPlan: string, feedback: string) {
 
 
 export async function generateDailyMissions(mood: string, performance: string) {
-  // Keeping as fallback
-  if (!import.meta.env.VITE_GEMINI_API_KEY) return [];
+  if (!ai && !getBackupAI()) return [];
   try {
     const response = await generateContentWithFallback({
       contents: `Generate 3 daily RPG-style missions in Arabic.
@@ -202,7 +295,7 @@ export async function generateDailyMissions(mood: string, performance: string) {
 }
 
 export async function getDopamineFastGuidance() {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) {
+  if (!ai && !getBackupAI()) {
     throw new Error("GEMINI_API_KEY is missing.");
   }
 

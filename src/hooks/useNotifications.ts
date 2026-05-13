@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import type { ToastNotification } from '../components/NotificationToast';
 
 const VAPID_PUBLIC_KEY = (import.meta as any).env.VITE_VAPID_PUBLIC_KEY;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
 
 // ─── Notification Types ────────────────────────────────────────────────────────
 export type NotificationType =
@@ -83,17 +84,46 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
     return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, [onNavigateTab]);
 
+  // ─── Toast Queue Management (MUST be before anything that uses it) ────────
+  const addToast = useCallback((payload: NotificationPayload) => {
+    const id = `toast-${Date.now()}-${++toastIdCounter.current}`;
+    const toast: ToastNotification = {
+      id,
+      title: payload.title,
+      body: payload.body,
+      type: payload.type,
+      timestamp: Date.now(),
+    };
+    setToasts(prev => [toast, ...prev]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   // ─── Permission Request ────────────────────────────────────────────────────
   const requestPermission = useCallback(async () => {
+    if (isIOS) {
+      addToast({
+        title: '📱 iOS',
+        body: 'الإشعارات على iPhone تتطلب إضافة التطبيق للشاشة الرئيسية (Safari > مشاركة > إضافة للشاشة الرئيسية).',
+        type: 'system'
+      });
+      return 'denied' as NotificationPermission;
+    }
+
     if (!('Notification' in window)) {
-      console.log('[System] This browser does not support notifications.');
+      addToast({ title: '❌', body: 'المتصفح لا يدعم الإشعارات.', type: 'system' });
       return 'denied' as NotificationPermission;
     }
 
     const result = await Notification.requestPermission();
     setPermission(result);
+    if (result === 'granted') {
+      addToast({ title: '✅', body: 'تم تفعيل الإشعارات.', type: 'system' });
+    }
     return result;
-  }, []);
+  }, [addToast]);
 
   // ─── Push Subscription ─────────────────────────────────────────────────────
   const subscribeUser = useCallback(async () => {
@@ -137,30 +167,11 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
     }
   }, [user]);
 
-  // ─── Toast Queue Management ────────────────────────────────────────────────
-  const addToast = useCallback((payload: NotificationPayload) => {
-    const id = `toast-${Date.now()}-${++toastIdCounter.current}`;
-    const toast: ToastNotification = {
-      id,
-      title: payload.title,
-      body: payload.body,
-      type: payload.type,
-      timestamp: Date.now(),
-    };
-    setToasts(prev => [toast, ...prev]);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
-
-  // ─── Local Notification (via Service Worker) ───────────────────────────────
+  // ─── Local Notification ────────────────────────────────────────────────────
   const sendLocalNotification = useCallback((title: string, options?: NotificationOptions & { type?: NotificationType }) => {
-    if (permission !== 'granted') return;
-
     const type = options?.type || 'system';
 
-    // If the document is visible (app is open), show a toast instead
+    // Always show toast if app is visible
     if (document.visibilityState === 'visible') {
       addToast({
         title,
@@ -169,16 +180,42 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
       });
     }
 
-    // Also show native notification via service worker
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.showNotification(title, {
-        icon: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
-        badge: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
-        ...options,
-        tag: options?.tag || type,
-        silent: document.visibilityState === 'visible', // Silent if app is focused
-      });
-    });
+    // iOS doesn't support new Notification() - skip native
+    if (isIOS) return;
+
+    // Permission check
+    if (permission !== 'granted') return;
+
+    // Try direct Notification API
+    if (!isIOS && 'Notification' in window) {
+      try {
+        const notif = new Notification(title, {
+          icon: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
+          badge: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
+          body: options?.body,
+          tag: options?.tag || type,
+          ...options,
+          silent: document.visibilityState === 'visible',
+        });
+        notif.onclick = () => window.focus();
+        return;
+      } catch (e) {
+        // Fall through to SW
+      }
+    }
+
+    // Fallback via service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          icon: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
+          badge: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
+          ...options,
+          tag: options?.tag || type,
+          silent: document.visibilityState === 'visible',
+        });
+      }).catch(() => {});
+    }
   }, [permission, addToast]);
 
   // ─── Event-Driven Notification Triggers ────────────────────────────────────
@@ -312,40 +349,40 @@ export function useNotifications(onNavigateTab?: (tab: string) => void) {
         body: 'نتأكد الآن من جاهزية النظام وجهازك.',
         type: 'system'
       });
-      
+
+      if (isIOS) {
+        addToast({
+          title: '📱 iOS',
+          body: 'ادخل على Safari > زر المشاركة > "إضافة للشاشة الرئيسية". الإشعارات داخل التطبيق (Toasts) شغالة.',
+          type: 'system'
+        });
+        return;
+      }
+
       try {
-        if (!('serviceWorker' in navigator)) {
-          addToast({ title: '❌ خطأ', body: 'متصفحك لا يدعم الـ Service Workers!', type: 'system' });
+        if (!('Notification' in window)) {
+          addToast({ title: '❌', body: 'المتصفح لا يدعم الإشعارات.', type: 'system' });
           return;
         }
 
-        const registration = await navigator.serviceWorker.ready;
-        addToast({ title: '✅ SW Ready', body: 'نظام التشغيل في الخلفية جاهز.', type: 'system' });
-
         if (Notification.permission !== 'granted') {
-          addToast({ title: '⚠️ تنبيه', body: 'يرجى السماح بالإشعارات في المتصفح.', type: 'system' });
+          addToast({ title: '⚠️ صلاحية', body: 'الرجاء السماح بالإشعارات.', type: 'system' });
           const res = await Notification.requestPermission();
-          if (res !== 'granted') return;
+          if (res !== 'granted') {
+            addToast({ title: '❌ مرفوض', body: 'لم يتم السماح.', type: 'system' });
+            return;
+          }
+          addToast({ title: '✅ صلاحية', body: 'تم منح الصلاحية.', type: 'system' });
         }
 
-        addToast({ title: '📡 جاري المزامنة', body: 'نرسل الآن هويتك الرقمية للسيرفر...', type: 'system' });
-        
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        const notif = new Notification('🛡️ نظام سيد الظلال', {
+          body: 'الإشعارات تعمل بنجاح!',
+          icon: 'https://img.icons8.com/ios-filled/100/3b82f6/ghost.png',
         });
-
-        await registerSubscription(subscription);
-        addToast({ title: '✅ تمت المزامنة', body: 'جهازك الآن مربوط بالسيرفر. نرسل الإشارة...', type: 'system' });
-
-        await sendServerPush({
-          title: '🛡️ اختبار النظام',
-          body: 'إذا رأيت هذا، فنظام إشعارات سيد الظلال يعمل بكفاءة عالية.',
-          type: 'system'
-        });
+        notif.onclick = () => window.focus();
+        addToast({ title: '✅', body: 'الإشعارات تعمل بكفاءة.', type: 'system' });
       } catch (err: any) {
-        console.error("Test Push Failed:", err);
-        addToast({ title: '❌ فشل الاختبار', body: `خطأ: ${err.message || 'غير معروف'}`, type: 'system' });
+        addToast({ title: '❌', body: `فشل: ${err.message || ''}`, type: 'system' });
       }
     }
   };

@@ -6,6 +6,17 @@ declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+  );
+  event.waitUntil(self.clients.claim());
+});
+
 // ─── Notification Type Configurations ──────────────────────────────────────────
 const NOTIFICATION_CONFIG: Record<string, {
   icon: string;

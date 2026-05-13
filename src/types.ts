@@ -92,6 +92,8 @@ export interface PlanStep {
   title: string;
   isCompleted: boolean;
   type: 'mission' | 'milestone' | 'boss';
+  tasks?: string[];
+  location?: string;
 }
 
 export interface Plan {

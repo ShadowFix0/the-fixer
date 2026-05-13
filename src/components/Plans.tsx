@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plan, PlanStep } from '../types';
+import { generatePlanStages } from '../services/geminiService';
 import { 
   Compass, 
   Map as MapIcon, 
@@ -19,7 +20,11 @@ import {
   Target,
   Trophy,
   ChevronLeft,
-  X
+  X,
+  Sparkles,
+  Loader2,
+  MapPin,
+  ListChecks
 } from 'lucide-react';
 
 interface Props {
@@ -39,8 +44,44 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
     stepTitle: ''
   });
   const [tempSteps, setTempSteps] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
 
   const activePlan = plans.find(p => p.id === activePlanId);
+
+  const generateWithAI = async () => {
+    if (!aiTopic.trim()) return;
+    setAiLoading(true);
+    try {
+      const stages = await generatePlanStages(aiTopic);
+      if (stages.length === 0) return;
+
+      const plan: Plan = {
+        id: `plan-${Date.now()}`,
+        title: aiTopic,
+        description: `خطة ذكية مولدة بالنظام وفقاً لهدف: ${aiTopic}`,
+        category: 'Strategic',
+        steps: stages.map((s: any, index: number) => ({
+          id: `step-${Date.now()}-${index}`,
+          title: s.title,
+          isCompleted: false,
+          type: index === stages.length - 1 ? 'boss' : (index % 3 === 0 ? 'milestone' : 'mission'),
+          tasks: s.tasks || [],
+          location: s.location || ''
+        })),
+        currentStepIndex: 0,
+        createdAt: Date.now()
+      };
+
+      onAdd(plan);
+      setAiTopic('');
+      setActivePlanId(plan.id);
+    } catch (error) {
+      console.error('AI Generation Error:', error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleAddPlan = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +96,9 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
         id: `step-${Date.now()}-${index}`,
         title,
         isCompleted: false,
-        type: index === tempSteps.length - 1 ? 'boss' : (index % 3 === 0 ? 'milestone' : 'mission')
+        type: index === tempSteps.length - 1 ? 'boss' : (index % 3 === 0 ? 'milestone' : 'mission'),
+        tasks: [],
+        location: ''
       })),
       currentStepIndex: 0,
       createdAt: Date.now()
@@ -243,9 +286,31 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                            }`}>
                              {step.type === 'boss' ? '🏆 التحدي الأخير' : step.type === 'milestone' ? '✨ نقطة تحول' : '⚔️ مهمة'}
                            </span>
-                           <h5 className={`text-xs font-bold mt-1 max-w-[120px] ${isLocked ? 'text-gray-600' : 'text-white'}`}>
+                           <h5 className={`text-xs font-bold mt-1 max-w-[160px] ${isLocked ? 'text-gray-600' : 'text-white'}`}>
                              {step.title}
                            </h5>
+                           {!isLocked && step.tasks && step.tasks.length > 0 && (
+                             <div className="mt-3 text-right max-w-[200px]">
+                               <div className="flex items-center gap-1.5 mb-1">
+                                 <ListChecks size={10} className="text-blue-500" />
+                                 <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">المتطلبات</span>
+                               </div>
+                               <ul className="space-y-1">
+                                 {step.tasks.map((task, ti) => (
+                                   <li key={ti} className="text-[9px] text-gray-400 leading-relaxed flex items-start gap-1.5">
+                                     <span className="text-blue-500/50 mt-0.5">•</span>
+                                     {task}
+                                   </li>
+                                 ))}
+                               </ul>
+                             </div>
+                           )}
+                           {!isLocked && step.location && (
+                             <div className="mt-2 flex items-center gap-1.5 justify-center">
+                               <MapPin size={10} className="text-amber-500" />
+                               <span className="text-[8px] text-amber-500/70 font-bold">{step.location}</span>
+                             </div>
+                           )}
                         </div>
                       </div>
                     );
@@ -304,6 +369,42 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                 <div>
                   <h3 className="text-2xl font-black text-white uppercase tracking-tight">رسم خريطة جديدة</h3>
                   <p className="text-xs text-gray-500">صمم رحلة تطويرك القادمة</p>
+                </div>
+              </div>
+
+              {/* AI Generation */}
+              <div className="mb-8 p-5 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 border border-blue-500/20 rounded-[2rem]">
+                <div className="flex items-center gap-3 mb-4">
+                  <Sparkles size={18} className="text-blue-500" />
+                  <h4 className="text-xs font-bold text-blue-400 uppercase tracking-widest">توليد ذكي بالذكاء الاصطناعي</h4>
+                </div>
+                <div className="flex gap-3">
+                  <input 
+                    type="text" 
+                    placeholder="اكتب هدفك... مثلاً: تعلم البرمجة"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all"
+                    value={aiTopic}
+                    onChange={(e) => setAiTopic(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && generateWithAI()}
+                  />
+                  <button 
+                    type="button"
+                    onClick={generateWithAI}
+                    disabled={aiLoading || !aiTopic.trim()}
+                    className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-xs tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                    توليد
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/5"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="px-4 text-[10px] text-gray-600 font-bold uppercase tracking-widest bg-[#121216]">أو أنشئ يدوياً</span>
                 </div>
               </div>
 
