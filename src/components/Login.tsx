@@ -84,7 +84,7 @@ const Login: React.FC = () => {
         </div>
 
         <div className="mt-8 text-center">
-          <span className="text-[10px] text-gray-700 font-bold uppercase tracking-[0.3em]">Shadow Sovereign System v3.2 (Sovereign's Path / طريق السيادة)</span>
+          <span className="text-[10px] text-gray-700 font-bold uppercase tracking-[0.3em]">Shadow Sovereign System v3.3 (Sovereign's Path / طريق السيادة)</span>
         </div>
       </motion.div>
     </div>
