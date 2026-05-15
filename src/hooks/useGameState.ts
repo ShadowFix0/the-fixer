@@ -72,6 +72,7 @@ export function useGameState() {
       lastResetDate: new Date().toISOString().split('T')[0],
       systemMemory: INITIAL_MEMORY,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      theme: 'light',
     };
   });
 
@@ -434,6 +435,10 @@ export function useGameState() {
     }));
   };
 
+  const setTheme = (theme: 'light' | 'dark' | 'poetry') => {
+    setState(prev => ({ ...prev, theme }));
+  };
+
   return {
     state,
     addXp,
@@ -455,6 +460,7 @@ export function useGameState() {
     addPlan,
     deletePlan,
     updatePlan,
+    setTheme,
     togglePlanStep,
     updateWaterIntake,
     setWaterGoal,

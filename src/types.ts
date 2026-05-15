@@ -127,4 +127,5 @@ export interface GameState {
   systemMemory?: SystemMemory;
   systemName?: string;
   timezone?: string;
+  theme: 'light' | 'dark' | 'poetry';
 }

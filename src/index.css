@@ -10,17 +10,106 @@
   --clr-bg: #0A0A0C;
   --clr-sidebar: #121216;
   --clr-card: #18181F;
-  --clr-accent: #3b82f6; /* Modern Blue */
+  --clr-accent: #3b82f6;
   --clr-accent-glow: rgba(59, 130, 246, 0.4);
   --clr-danger: #ef4444;
   --clr-warn: #f59e0b;
   --clr-success: #10b981;
   --clr-border: rgba(255, 255, 255, 0.06);
+  --clr-text: #f1f1f1;
+  --clr-text-secondary: #6B7280;
+  --clr-glass: rgba(24, 24, 31, 0.7);
+  --clr-glass-border: rgba(255, 255, 255, 0.08);
+  --clr-progress-bg: #23232C;
+}
+
+.light-theme {
+  --clr-bg: #FFFFFF;
+  --clr-sidebar: #F3F4F6;
+  --clr-card: #FFFFFF;
+  --clr-accent: #3b82f6;
+  --clr-accent-glow: rgba(59, 130, 246, 0.2);
+  --clr-danger: #ef4444;
+  --clr-warn: #f59e0b;
+  --clr-success: #10b981;
+  --clr-border: rgba(0, 0, 0, 0.08);
+  --clr-text: #111827;
+  --clr-text-secondary: #6B7280;
+  --clr-glass: rgba(255, 255, 255, 0.8);
+  --clr-glass-border: rgba(0, 0, 0, 0.08);
+  --clr-progress-bg: #E5E7EB;
+  /* Override Tailwind v4 color variables for light theme */
+  --color-white: #111827;
+  --color-gray-300: #374151;
+  --color-gray-400: #6B7280;
+  --color-gray-500: #6B7280;
+  --color-gray-600: #9CA3AF;
+}
+
+.poetry-theme {
+  --clr-bg: #000000;
+  --clr-sidebar: #000000;
+  --clr-card: #000000;
+  --clr-accent: #FFFFFF;
+  --clr-accent-glow: rgba(255, 255, 255, 0.6);
+  --clr-danger: #ef4444;
+  --clr-warn: #f59e0b;
+  --clr-success: #10b981;
+  --clr-border: rgba(255, 255, 255, 0.3);
+  --clr-text: #FFFFFF;
+  --clr-text-secondary: #A0A0A0;
+  --clr-glass: rgba(0, 0, 0, 0.8);
+  --clr-glass-border: rgba(255, 255, 255, 0.2);
+  --clr-progress-bg: #1A1A1A;
+  /* Override Tailwind v4 color variables for poetry theme */
+  --color-white: #FFFFFF;
+  --color-gray-300: #A0A0A0;
+  --color-gray-400: #808080;
+  --color-gray-500: #606060;
+  --color-gray-600: #404040;
+}
+
+/* Keep white text on colored backgrounds */
+.light-theme .bg-blue-600 { --color-white: #fff; }
+.light-theme .bg-blue-500 { --color-white: #fff; }
+.light-theme .bg-red-500 { --color-white: #fff; }
+.light-theme .bg-emerald-600 { --color-white: #fff; }
+.light-theme .bg-amber-500 { --color-white: #fff; }
+.light-theme .bg-orange-600 { --color-white: #fff; }
+
+.poetry-theme .pro-card {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.poetry-theme .text-white, 
+.poetry-theme .font-bold,
+.poetry-theme .font-black {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+.poetry-theme .bg-blue-600,
+.poetry-theme .bg-blue-500 {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+}
+.poetry-theme .text-blue-500,
+.poetry-theme .text-blue-400 {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+.poetry-theme .badge-rank {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.poetry-theme .glass {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 body {
   background-color: var(--clr-bg);
-  color: #f1f1f1;
+  color: var(--clr-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
@@ -41,14 +130,14 @@ body {
 
 /* Glassmorphism utility */
 .glass {
-  background: rgba(24, 24, 31, 0.7);
+  background: var(--clr-glass);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--clr-glass-border);
 }
 
 /* Stat progress bars */
 .progress-bg {
-  background: #23232C;
+  background: var(--clr-progress-bg);
   border-radius: 99px;
   overflow: hidden;
 }
@@ -166,5 +255,26 @@ h1, h2, h3 {
   }
 }
 
-
-
+/* ===== LIGHT THEME OVERRIDES ===== */
+.light-theme .pro-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+.light-theme .boss-hp-container {
+  background: var(--clr-progress-bg);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+.light-theme .ai-toast {
+  background: #F3F4F6;
+  border-color: #D1D5DB;
+}
+.light-theme .badge-rank {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.light-theme ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+.light-theme .from-\[\#1E293B\] { --tw-gradient-from: #F3F4F6; }
+.light-theme .to-\[\#0F172A\] { --tw-gradient-to: #F9FAFB; }
+.light-theme .bg-\[\#1E293B\]\/80 { background-color: rgba(243, 244, 246, 0.8); }

@@ -46,20 +46,29 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
   const [tempSteps, setTempSteps] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
+  const [showStagesPrompt, setShowStagesPrompt] = useState(false);
+  const [stagesCount, setStagesCount] = useState(5);
+  const [pendingTopic, setPendingTopic] = useState('');
 
   const activePlan = plans.find(p => p.id === activePlanId);
 
-  const generateWithAI = async () => {
+  const initiateAIPlan = () => {
     if (!aiTopic.trim()) return;
+    setPendingTopic(aiTopic);
+    setShowStagesPrompt(true);
+  };
+
+  const confirmAIPlan = async () => {
+    setShowStagesPrompt(false);
     setAiLoading(true);
     try {
-      const stages = await generatePlanStages(aiTopic);
+      const stages = await generatePlanStages(pendingTopic, stagesCount);
       if (stages.length === 0) return;
 
       const plan: Plan = {
         id: `plan-${Date.now()}`,
-        title: aiTopic,
-        description: `خطة ذكية مولدة بالنظام وفقاً لهدف: ${aiTopic}`,
+        title: pendingTopic,
+        description: `خطة ذكية مولدة وفقاً لهدف: ${pendingTopic}`,
         category: 'Strategic',
         steps: stages.map((s: any, index: number) => ({
           id: `step-${Date.now()}-${index}`,
@@ -75,6 +84,7 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
 
       onAdd(plan);
       setAiTopic('');
+      setPendingTopic('');
       setActivePlanId(plan.id);
     } catch (error) {
       console.error('AI Generation Error:', error);
@@ -385,11 +395,11 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                     className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all"
                     value={aiTopic}
                     onChange={(e) => setAiTopic(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && generateWithAI()}
+                    onKeyDown={(e) => e.key === 'Enter' && initiateAIPlan()}
                   />
                   <button 
                     type="button"
-                    onClick={generateWithAI}
+                    onClick={initiateAIPlan}
                     disabled={aiLoading || !aiTopic.trim()}
                     className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-xs tracking-widest transition-all disabled:opacity-50 flex items-center gap-2"
                   >
@@ -397,6 +407,57 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                     توليد
                   </button>
                 </div>
+
+                <AnimatePresence>
+                  {showStagesPrompt && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 p-4 bg-blue-600/10 border border-blue-500/30 rounded-2xl space-y-4">
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={14} className="text-blue-400" />
+                          <span className="text-xs font-bold text-blue-400">حدد عدد المراحل</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {[3, 5, 7, 10].map(n => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setStagesCount(n)}
+                              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
+                                stagesCount === n 
+                                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
+                                  : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                              }`}
+                            >
+                              {n} مراحل
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setShowStagesPrompt(false); setPendingTopic(''); setAiTopic(''); }}
+                            className="px-4 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-colors"
+                          >
+                            إلغاء
+                          </button>
+                          <button
+                            type="button"
+                            onClick={confirmAIPlan}
+                            className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2"
+                          >
+                            <Sparkles size={14} />
+                            تأكيد التوليد
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="relative mb-6">

@@ -38,7 +38,9 @@ import {
   BellRing,
   LogOut,
   FileText,
-  Map as MapIcon
+  Map as MapIcon,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 class ErrorBoundary extends Component<{children: React.ReactNode}, {error: Error | null}> {
@@ -145,9 +147,17 @@ function HunterSystem() {
     updateWaterIntake,
     setWaterGoal,
     markMissionReminderSent,
+    setTheme,
   } = useGameState();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  const getSystemName = (name: string) => {
+    if (state.theme === 'poetry') {
+      return name.replace(/النظام/g, 'الشعر');
+    }
+    return name;
+  };
 
   const handleNavigateTab = useCallback((tab: string) => {
     setActiveTab(tab);
@@ -356,12 +366,12 @@ function HunterSystem() {
                 <CharacterProfile stats={state.character} onAscend={ascend} />
               </div>
               <div className="pro-card p-8 flex flex-col justify-center bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-blue-500/20 shadow-xl shadow-blue-900/10 hidden lg:flex">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                    <Ghost size={20} />
-                  </div>
-                  <h3 className="text-lg font-bold tracking-tight">إرشادات النظام</h3>
-                </div>
+<div className="flex items-center gap-3 mb-6">
+  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+    <Ghost size={20} />
+  </div>
+  <h3 className="text-lg font-bold tracking-tight">إرشادات {getSystemName('النظام')}</h3>
+</div>
                 <p className="text-sm leading-relaxed text-blue-100/70 italic font-light">
                   "بصفتك ملك الظلال المستقبلي، فإن كل عادة تلتزم بها اليوم تزيد من قوة جيشك غداً. المماطلة هي العدو الأول، فالعالم لا ينتظر الضعفاء."
                 </p>
@@ -487,22 +497,32 @@ function HunterSystem() {
       case 'chat':
         return (
           <div className="max-w-4xl mx-auto space-y-8">
-            <div className="text-center lg:text-right">
-              <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">نظام التواصل المباشر</h2>
-              <p className="text-sm text-gray-500 mt-1">تحدث مع النظام للحصول على مهام مخصصة حسب حالتك</p>
-            </div>
+<div className="text-center lg:text-right">
+  <h2 className="text-2xl lg:text-3xl font-bold tracking-tight">{getSystemName('نظام')} التواصل المباشر</h2>
+  <p className="text-sm text-gray-500 mt-1">تحدث مع {getSystemName('النظام')} للحصول على مهام مخصصة حسب حالتك</p>
+</div>
             <SystemChat 
               onAddMissions={(newMissions) => newMissions.forEach(addMission)} 
               onStartMission={startMission}
               onDeleteMission={deleteMission}
               systemMemory={state.systemMemory}
               onUpdateMemory={updateSystemMemory}
+              systemContext={{
+                pendingTasks: state.missions.filter(m => !m.isCompleted).length,
+                activePlans: state.plans?.length || 0,
+                incompletePlans: state.plans?.filter(p => p.steps.some(s => !s.isCompleted)).length || 0,
+                waterIntakeMl: state.waterIntake?.currentMl || 0,
+                waterTargetMl: (state.waterIntake?.targetLiters || 2) * 1000,
+                habitsCompletedToday: state.habits.filter(h => h.completedToday).length,
+                habitsTotal: state.habits.length,
+                activeBosses: state.activeBosses.length,
+              }}
             />
             <div className="mt-12 pt-12 border-t border-white/5">
-              <div className="mb-6">
-                <h3 className="text-lg font-bold tracking-tight">سجل ذاكرة النظام</h3>
-                <p className="text-xs text-gray-500">البيانات التي جمعها النظام عنك خلال محادثاتك</p>
-              </div>
+<div className="mb-6">
+  <h3 className="text-lg font-bold tracking-tight">سجل ذاكرة {getSystemName('النظام')}</h3>
+  <p className="text-xs text-gray-500">البيانات التي جمعها {getSystemName('النظام')} عنك خلال محادثاتك</p>
+</div>
               <SystemMemoryDisplay memory={state.systemMemory || { interests: [], priorities: [], passions: [], dreams: [], problems: [], mistakes: [], otherNotes: [] }} />
             </div>
           </div>
@@ -524,7 +544,7 @@ function HunterSystem() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-[#f1f1f1] flex flex-col lg:flex-row overflow-hidden font-sans" dir="rtl">
+    <div className={`min-h-screen flex flex-col lg:flex-row overflow-hidden font-sans ${state.theme === 'light' ? 'light-theme' : state.theme === 'poetry' ? 'poetry-theme' : ''}`} dir="rtl" style={{ backgroundColor: 'var(--clr-bg)', color: 'var(--clr-text)' }}>
       {/* Initial Setup Modal */}
       <AnimatePresence>
         {showSetup && (
@@ -543,7 +563,7 @@ function HunterSystem() {
                 <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/40">
                   <Ghost size={32} className="text-white" />
                 </div>
-                <h2 className="text-2xl font-black mb-2 tracking-tight">مرحباً بك في النظام</h2>
+                <h2 className="text-2xl font-black mb-2 tracking-tight">مرحباً بك في {getSystemName('النظام')}</h2>
                 <p className="text-sm text-blue-100/60 leading-relaxed italic">"لبدء المزامنة، يحتاج النظام إلى معرفة هويتك وكيف ترغب في مناداتي."</p>
               </div>
 
@@ -608,9 +628,9 @@ function HunterSystem() {
 
       {/* Modern Sidebar */}
       <aside className={`
-        fixed inset-y-0 right-0 z-[70] w-72 bg-[#121216]/95 lg:bg-[#121216] border-l border-white/5 flex flex-col backdrop-blur-md transition-transform duration-300 lg:static lg:translate-x-0 overflow-y-auto
+        fixed inset-y-0 right-0 z-[70] w-72 border-l flex flex-col backdrop-blur-md transition-transform duration-300 lg:static lg:translate-x-0 overflow-y-auto
         ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
-      `}>
+      `} style={{ backgroundColor: 'var(--clr-sidebar)', borderColor: 'var(--clr-border)' }}>
         <div className="p-8">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-3">
@@ -682,33 +702,33 @@ function HunterSystem() {
         </div>
 
         <div className="mt-auto p-8 pb-32 lg:pb-8">
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-6">
+          <div className="rounded-2xl p-4 border mb-6" style={{ backgroundColor: 'var(--clr-card)', borderColor: 'var(--clr-border)' }}>
              <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
                   <Lock size={14} />
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">صيام الدوبامين</span>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--clr-text-secondary)' }}>صيام الدوبامين</span>
              </div>
              <button 
                 onClick={() => { setDopamineFast(true); notifyDopamineFast('start'); }}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-900/40"
              >
-               تشغيل وضع التركيز
+                تشغيل وضع التركيز
              </button>
           </div>
 
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-6">
+          <div className="rounded-2xl p-4 border mb-6" style={{ backgroundColor: 'var(--clr-card)', borderColor: 'var(--clr-border)' }}>
              <div className="flex items-center gap-3 mb-4">
                 <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400">
                   <Swords size={14} />
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">اختبار الإشعارات</span>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--clr-text-secondary)' }}>اختبار الإشعارات</span>
              </div>
              <button 
                 onClick={() => testPush()}
                 className="w-full py-2.5 border border-amber-500/30 hover:bg-amber-500/10 text-amber-400 rounded-xl text-xs font-bold transition-all"
              >
-               فحص اتصال النظام
+                فحص اتصال النظام
              </button>
           </div>
 
@@ -719,7 +739,17 @@ function HunterSystem() {
               <span className="text-[10px] text-gray-500">مستوى {state.character.level} {state.systemName && `| ${state.systemName}`}</span>
             </div>
             <div className="mr-auto flex gap-2">
-              <Settings size={16} className="text-gray-600 cursor-pointer hover:text-white transition-colors" />
+              <button 
+                onClick={() => {
+                  if (state.theme === 'light') setTheme('dark');
+                  else if (state.theme === 'dark') setTheme('poetry');
+                  else setTheme('light');
+                }} 
+                className="text-gray-500 hover:text-blue-500 transition-colors" 
+                title={state.theme === 'light' ? 'الوضع الليلي' : state.theme === 'dark' ? 'الوضع النهاري' : 'الوضع العادي'}
+              >
+                {state.theme === 'light' ? <Moon size={16} /> : state.theme === 'dark' ? <Sun size={16} /> : <Ghost size={16} />}
+              </button>
               <button 
                 onClick={logout}
                 className="text-[10px] uppercase font-bold text-gray-600 hover:text-red-500 transition-colors"
@@ -732,10 +762,10 @@ function HunterSystem() {
       </aside>
 
       {/* Main Container */}
-      <div className={`flex-1 flex flex-col min-w-0 bg-[#0A0A0C] relative transition-all duration-700 ${state.isDopamineFastActive ? 'blur-2xl grayscale brightness-50 pointer-events-none' : ''}`}>
+      <div className={`flex-1 flex flex-col min-w-0 relative transition-all duration-700 ${state.isDopamineFastActive ? 'blur-2xl grayscale brightness-50 pointer-events-none' : ''}`} style={{ backgroundColor: 'var(--clr-bg)' }}>
         
         {/* Top Header */}
-        <header className="h-20 border-b border-white/5 flex items-center justify-between px-4 lg:px-10 glass sticky top-0 bg-[#0A0A0C]/80 z-30 backdrop-blur-xl shrink-0">
+        <header className="h-20 border-b flex items-center justify-between px-4 lg:px-10 sticky top-0 z-30 backdrop-blur-xl shrink-0" style={{ backgroundColor: 'var(--clr-glass)', borderColor: 'var(--clr-border)' }}>
           <div className="flex items-center gap-4 lg:gap-8">
             <button className="lg:hidden p-2 bg-white/5 rounded-lg text-gray-400 hover:text-white" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={20} />
@@ -871,7 +901,7 @@ function HunterSystem() {
       </div>
 
       {/* Bottom Navigation for Mobile */}
-      <nav className="fixed bottom-0 inset-x-0 h-20 bg-[#121216]/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-around px-2 z-50 lg:hidden shadow-2xl">
+      <nav className="fixed bottom-0 inset-x-0 h-20 backdrop-blur-xl border-t flex items-center justify-around px-2 z-50 lg:hidden shadow-2xl" style={{ backgroundColor: 'var(--clr-sidebar)', borderColor: 'var(--clr-border)' }}>
         <BottomNavItem 
           icon={<LayoutDashboard size={20} />} 
           label="الرئيسية" 

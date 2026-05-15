@@ -21,9 +21,19 @@ interface Props {
   onDeleteMission: (id: string) => void;
   systemMemory?: SystemMemory;
   onUpdateMemory: (memory: Partial<SystemMemory>) => void;
+  systemContext?: {
+    pendingTasks: number;
+    activePlans: number;
+    incompletePlans: number;
+    waterIntakeMl: number;
+    waterTargetMl: number;
+    habitsCompletedToday: number;
+    habitsTotal: number;
+    activeBosses: number;
+  };
 }
 
-export default function SystemChat({ onAddMissions, onStartMission, onDeleteMission, systemMemory, onUpdateMemory }: Props) {
+export default function SystemChat({ onAddMissions, onStartMission, onDeleteMission, systemMemory, onUpdateMemory, systemContext }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: 'أهلاً بك أيها العاهل. أنا ذاكرة النظام المستدامة. أخبرني عن خططك، أحلامك، عمرك، أو حتى مشاكلك.. سأقوم بتسجيل كل ما تقوله لأساعدك في رحلة الارتقاء للمستوى التالي.' }
   ]);
@@ -51,7 +61,7 @@ export default function SystemChat({ onAddMissions, onStartMission, onDeleteMiss
         parts: [{ text: m.text }]
       }));
 
-      const data = await chatWithSystem(userMsg, history, systemMemory);
+      const data = await chatWithSystem(userMsg, history, systemMemory, systemContext);
       
       let formattedMissions: Mission[] = [];
       if (data && data.missions && data.missions.length > 0) {

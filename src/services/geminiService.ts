@@ -103,10 +103,45 @@ async function generateContentWithFallback(config: any, useBackup = false) {
   throw lastError;
 }
 
-export async function chatWithSystem(message: string, history: any[], systemMemory?: any) {
+export async function chatWithSystem(
+  message: string, 
+  history: any[], 
+  systemMemory?: any,
+  systemContext?: {
+    pendingTasks: number;
+    activePlans: number;
+    incompletePlans: number;
+    waterIntakeMl: number;
+    waterTargetMl: number;
+    habitsCompletedToday: number;
+    habitsTotal: number;
+    activeBosses: number;
+  }
+) {
   if (!ai && !getBackupAI()) {
     throw new Error("GEMINI_API_KEY is missing.");
   }
+
+  const context: Record<string, number> = systemContext || {};
+  const pendingTasks = context['pendingTasks'] || 0;
+  const activePlans = context['activePlans'] || 0;
+  const waterCurrent = context['waterIntakeMl'] || 0;
+  const waterTarget = context['waterTargetMl'] || 2000;
+  const waterPercent = Math.round((waterCurrent / waterTarget) * 100);
+  const habitsDone = context['habitsCompletedToday'] || 0;
+  const habitsTotal = context['habitsTotal'] || 0;
+  const bosses = context['activeBosses'] || 0;
+
+  const awarenessContext = `
+╔══════════════════════════════════════╗
+║      حالة المستخدم الحالية           ║
+╠══════════════════════════════════════╣
+║ 📋 المهام المعلقة: ${pendingTasks} مهمة
+║ 🗺️  خرائط الطريق النشطة: ${activePlans} خطة
+║ 💧 شرب الماء: ${waterCurrent}مل من ${waterTarget}مل (${waterPercent}%)
+║ ⚔️  الطقوس اليومية: ${habitsDone}/${habitsTotal} مكتملة
+║ 👹 الزعماء النشطين: ${bosses} زعيم
+╚══════════════════════════════════════╝`;
 
   try {
     const config = {
@@ -116,11 +151,21 @@ export async function chatWithSystem(message: string, history: any[], systemMemo
       ],
       config: {
         systemInstruction: `Shadow Sovereign System.
-        1. Context: Dark RPG. Precise, cold, supportive only to the strong.
-        2. Missions: Generate 1-3 missions if requested or if user mentions goals.
-        3. Lang: Arabic only.
-        4. JSON format.
-        Memory: ${JSON.stringify(systemMemory || {})}`,
+1. Context: Dark RPG. Precise, cold, supportive only to the strong.
+2. Missions: Generate 1-3 missions only if user explicitly requests them or mentions new goals. NEVER pile up tasks - if user already has ${pendingTasks} pending, suggest completing them first!
+3. Lang: Arabic only.
+4. JSON format.
+5. AWARENESS: You are ALIVE and AWARE of user's entire system state:
+- Water intake: ${waterPercent}% of daily goal (${waterCurrent}ml/${waterTarget}ml). If below 50%, remind user to drink water.
+- Pending tasks: ${pendingTasks} tasks waiting. Don't add more unless asked!
+- Active plans: ${activePlans} road maps. Know what's in them.
+- Daily habits: ${habitsDone}/${habitsTotal} completed today.
+- Active bosses: ${bosses} bad habits to fight.
+6. PRIORITIES: Before suggesting NEW tasks, remind user of incomplete ones. Say things like "لديك ${pendingTasks} مهمة معلقة - هل تريد إكمال إحداها أولاً؟"
+7. WATER: If user seems tired, distracted, or has low water intake, mention it. Say "لم تشرب ماءً كافياً اليوم - ${waterPercent}% فقط"
+8. ENCOURAGEMENT: Be cold but supportive. Reward completion, not accumulation.
+
+Memory: ${JSON.stringify(systemMemory || {})}`,
         responseMimeType: "application/json",
         temperature: 0.7,
         responseSchema: {
@@ -188,26 +233,27 @@ export async function generateAIPlan(topic: string) {
   }
 }
 
-export async function generatePlanStages(topic: string) {
+export async function generatePlanStages(topic: string, count: number = 5) {
+  const stagesCount = Math.max(3, Math.min(10, count));
   try {
     const config = {
-      contents: [{ role: 'user', parts: [{ text: `قم بإنشاء مراحل تفصيلية لخطة: ${topic}` }] }],
+      contents: [{ role: 'user', parts: [{ text: `قم بإنشاء ${stagesCount} مراحل تفصيلية لخطة: ${topic}` }] }],
       config: {
         systemInstruction: `أنت مخطط طريق السيادة. مهمتك هي تقسيم أي هدف إلى مراحل (Stages).
-لكل مرحلة: عنوان، قائمة مهام مطلوبة، ومكان/مصدر يمكن إيجاد المعلومة أو الأداة فيه.
-كن دقيقاً وواقعياً.
-اللغة: العربية.
-الرد بصيغة JSON فقط بهذا الشكل:
-{
-  "stages": [
-    {
-      "title": "عنوان المرحلة",
-      "tasks": ["مهمة 1", "مهمة 2", "مهمة 3"],
-      "location": "مكان إيجاد المتطلبات"
-    }
-  ]
-}
-يجب ألا يقل عدد المراحل عن 3 ولا يزيد عن 8.`,
+ لكل مرحلة: عنوان، قائمة مهام مطلوبة، ومكان/مصدر يمكن إيجاد المعلومة أو الأداة فيه.
+ كن دقيقاً وواقعياً.
+ اللغة: العربية.
+ الرد بصيغة JSON فقط بهذا الشكل:
+ {
+   "stages": [
+     {
+       "title": "عنوان المرحلة",
+       "tasks": ["مهمة 1", "مهمة 2", "مهمة 3"],
+       "location": "مكان إيجاد المتطلبات"
+     }
+   ]
+ }
+ يجب أن يكون عدد المراحل بالضبط ${stagesCount} مراحل فقط.`,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
