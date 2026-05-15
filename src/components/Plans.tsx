@@ -49,6 +49,7 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
   const [showStagesPrompt, setShowStagesPrompt] = useState(false);
   const [stagesCount, setStagesCount] = useState(5);
   const [pendingTopic, setPendingTopic] = useState('');
+  const [generationError, setGenerationError] = useState('');
 
   const activePlan = plans.find(p => p.id === activePlanId);
 
@@ -60,10 +61,15 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
 
   const confirmAIPlan = async () => {
     setShowStagesPrompt(false);
+    setGenerationError('');
     setAiLoading(true);
     try {
       const stages = await generatePlanStages(pendingTopic, stagesCount);
-      if (stages.length === 0) return;
+      if (stages.length === 0) {
+        setGenerationError('تعذر توليد المراحل. تحقق من اتصال الإنترنت أو جرّب موضوعاً آخر.');
+        setAiLoading(false);
+        return;
+      }
 
       const plan: Plan = {
         id: `plan-${Date.now()}`,
@@ -85,12 +91,13 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
       onAdd(plan);
       setAiTopic('');
       setPendingTopic('');
+      setGenerationError('');
       setActivePlanId(plan.id);
     } catch (error) {
       console.error('AI Generation Error:', error);
-    } finally {
-      setAiLoading(false);
+      setGenerationError('حدث خطأ أثناء التوليد: ' + (error instanceof Error ? error.message : 'خطأ غير معروف'));
     }
+    setAiLoading(false);
   };
 
   const handleAddPlan = (e: React.FormEvent) => {
@@ -363,7 +370,7 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-xl bg-[#121216] border border-white/10 rounded-[3rem] p-8 relative z-110 shadow-[0_0_100px_rgba(0,0,0,0.8)]"
+              className="w-full max-w-xl bg-[#121216] border border-white/10 rounded-[3rem] p-8 relative z-110 shadow-[0_0_100px_rgba(0,0,0,0.8)] max-h-[90vh] overflow-y-auto"
             >
               <button 
                 onClick={() => setShowCreateForm(false)}
@@ -411,23 +418,22 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                 <AnimatePresence>
                   {showStagesPrompt && (
                     <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
                     >
                       <div className="mt-4 p-4 bg-blue-600/10 border border-blue-500/30 rounded-2xl space-y-4">
                         <div className="flex items-center gap-2">
                           <Sparkles size={14} className="text-blue-400" />
                           <span className="text-xs font-bold text-blue-400">حدد عدد المراحل</span>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="grid grid-cols-2 gap-2">
                           {[3, 5, 7, 10].map(n => (
                             <button
                               key={n}
                               type="button"
                               onClick={() => setStagesCount(n)}
-                              className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
+                              className={`py-2.5 rounded-xl text-xs font-black transition-all ${
                                 stagesCount === n 
                                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
                                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -440,7 +446,7 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => { setShowStagesPrompt(false); setPendingTopic(''); setAiTopic(''); }}
+                            onClick={() => { setShowStagesPrompt(false); setPendingTopic(''); setAiTopic(''); setGenerationError(''); }}
                             className="px-4 py-2 text-[10px] font-bold text-gray-500 hover:text-white transition-colors"
                           >
                             إلغاء
@@ -448,7 +454,8 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                           <button
                             type="button"
                             onClick={confirmAIPlan}
-                            className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2"
+                            disabled={aiLoading}
+                            className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-black transition-all shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 disabled:opacity-50"
                           >
                             <Sparkles size={14} />
                             تأكيد التوليد
@@ -458,6 +465,12 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {generationError && (
+                  <div className="mt-4 p-3 bg-red-600/10 border border-red-500/30 rounded-xl">
+                    <p className="text-[11px] text-red-400 font-bold">{generationError}</p>
+                  </div>
+                )}
               </div>
 
               <div className="relative mb-6">
@@ -470,7 +483,7 @@ export default function Plans({ plans, onAdd, onDelete, onToggleStep }: Props) {
               </div>
 
               <form onSubmit={handleAddPlan} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">عنوان الخطة</label>
                     <input 
