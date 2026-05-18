@@ -55,7 +55,37 @@ export function useGameState() {
     const key = getStorageKey();
     try {
       const saved = localStorage.getItem(key);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Ensure scheduler always exists (migration for old saves)
+        if (!parsed.scheduler) {
+          parsed.scheduler = {
+            goals: [],
+            habits: [],
+            tasks: [],
+            energy: {
+              mental: 100,
+              physical: 100,
+              lastUpdated: Date.now(),
+              dailyPattern: Array(24).fill(75)
+            },
+            preferences: {
+              sleepStart: "23:00",
+              sleepEnd: "07:00",
+              workStart: "09:00",
+              workEnd: "18:00",
+              productivityPeakStart: "10:00",
+              productivityPeakEnd: "16:00",
+              breakDuration: 15,
+              maxDailyHours: 8
+            },
+            generatedSchedules: {},
+            burnoutRisk: 'Low',
+            lastOptimization: Date.now()
+          };
+        }
+        return parsed;
+      }
     } catch (e) {
       console.error("Failed to parse saved game state:", e);
       localStorage.removeItem(key);
@@ -106,7 +136,16 @@ export function useGameState() {
     const saved = localStorage.getItem(key);
     if (saved) {
       try {
-        setState(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (!parsed.scheduler) {
+          parsed.scheduler = {
+            goals: [], habits: [], tasks: [],
+            energy: { mental: 100, physical: 100, lastUpdated: Date.now(), dailyPattern: Array(24).fill(75) },
+            preferences: { sleepStart: "23:00", sleepEnd: "07:00", workStart: "09:00", workEnd: "18:00", productivityPeakStart: "10:00", productivityPeakEnd: "16:00", breakDuration: 15, maxDailyHours: 8 },
+            generatedSchedules: {}, burnoutRisk: 'Low', lastOptimization: Date.now()
+          };
+        }
+        setState(parsed);
       } catch (e) {
         console.error("Failed to parse saved game state on user change:", e);
       }
