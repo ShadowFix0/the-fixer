@@ -154,6 +154,10 @@ function HunterSystem() {
     addSchedulerHabit,
     addSchedulerTask,
     updateSchedulerGoal,
+    updateSchedulerTask,
+    deleteSchedulerGoal,
+    deleteSchedulerTask,
+    deleteSchedulerHabit,
     updateSchedulerEnergy,
     updateSchedulerPreferences,
     updateBurnoutRisk,
@@ -566,6 +570,10 @@ function HunterSystem() {
               onAddHabit={addSchedulerHabit}
               onAddTask={addSchedulerTask}
               onUpdateGoal={updateSchedulerGoal}
+              onUpdateTask={updateSchedulerTask}
+              onDeleteGoal={deleteSchedulerGoal}
+              onDeleteTask={deleteSchedulerTask}
+              onDeleteHabit={deleteSchedulerHabit}
               onUpdateEnergy={updateSchedulerEnergy}
               onUpdatePreferences={updateSchedulerPreferences}
               onUpdateBurnoutRisk={updateBurnoutRisk}

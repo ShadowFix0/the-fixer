@@ -514,12 +514,39 @@ export function useGameState() {
         } 
       }));
     },
+    updateSchedulerTask: (id: string, updates: Partial<SchedulerTask>) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          tasks: prev.scheduler.tasks.map(t => t.id === id ? { ...t, ...updates } : t) 
+        } 
+      }));
+    },
     deleteSchedulerGoal: (id: string) => {
       setState(prev => ({ 
         ...prev, 
         scheduler: { 
           ...prev.scheduler, 
           goals: prev.scheduler.goals.filter(g => g.id !== id) 
+        } 
+      }));
+    },
+    deleteSchedulerTask: (id: string) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          tasks: prev.scheduler.tasks.filter(t => t.id !== id) 
+        } 
+      }));
+    },
+    deleteSchedulerHabit: (id: string) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          habits: prev.scheduler.habits.filter(h => h.id !== id) 
         } 
       }));
     },

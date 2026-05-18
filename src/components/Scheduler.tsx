@@ -19,6 +19,10 @@ interface Props {
   onAddHabit: (habit: SchedulerHabit) => void;
   onAddTask: (task: SchedulerTask) => void;
   onUpdateGoal: (id: string, updates: Partial<SchedulerGoal>) => void;
+  onUpdateTask: (id: string, updates: Partial<SchedulerTask>) => void;
+  onDeleteGoal: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onDeleteHabit: (id: string) => void;
   onUpdateEnergy: (energy: Partial<SchedulerEnergy>) => void;
   onUpdatePreferences: (prefs: Partial<SchedulerPreferences>) => void;
   onUpdateBurnoutRisk: (risk: 'Low' | 'Medium' | 'High') => void;
@@ -26,7 +30,8 @@ interface Props {
 
 export default function Scheduler({
   goals, habits, tasks, energy, preferences, burnoutRisk,
-  onAddGoal, onAddHabit, onAddTask, onUpdateGoal,
+  onAddGoal, onAddHabit, onAddTask, onUpdateGoal, onUpdateTask,
+  onDeleteGoal, onDeleteTask, onDeleteHabit,
   onUpdateEnergy, onUpdatePreferences, onUpdateBurnoutRisk
 }: Props) {
   const [activeTab, setActiveTab] = useState<'goals' | 'tasks' | 'habits' | 'preferences'>('goals');
@@ -36,7 +41,7 @@ export default function Scheduler({
 
   const [newGoal, setNewGoal] = useState({
     title: '', description: '', category: 'Personal' as SchedulerGoal['category'],
-    priority: 'Medium' as SchedulerGoal['priority'], targetDate: '', estimatedHours: 10
+    priority: 'Medium' as SchedulerGoal['priority'], targetDate: '', estimatedHours: 0
   });
 
   const [newTask, setNewTask] = useState({
@@ -57,18 +62,18 @@ export default function Scheduler({
 
   const handleAddGoal = (e: FormEvent) => {
     e.preventDefault();
-    if (!newGoal.title.trim() || !newGoal.targetDate) return;
+    if (!newGoal.title.trim()) return;
     onAddGoal({
       id: `sgoal-${Date.now()}`,
       title: newGoal.title,
       description: newGoal.description,
       category: newGoal.category,
       priority: newGoal.priority,
-      targetDate: newGoal.targetDate,
-      estimatedHours: newGoal.estimatedHours,
+      targetDate: newGoal.targetDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      estimatedHours: newGoal.estimatedHours || 0,
       completed: false, progress: 0, createdAt: Date.now()
     });
-    setNewGoal({ title: '', description: '', category: 'Personal', priority: 'Medium', targetDate: '', estimatedHours: 10 });
+    setNewGoal({ title: '', description: '', category: 'Personal', priority: 'Medium', targetDate: '', estimatedHours: 0 });
     setShowGoalForm(false);
   };
 
@@ -288,10 +293,10 @@ export default function Scheduler({
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block">تاريخ الاستهداف</label>
-                        <input required type="date"
+                        <label className="text-[9px] font-bold text-gray-500 uppercase tracking-widest block">عدد الساعات المطلوبة</label>
+                        <input type="number" placeholder="مثلاً: 40"
                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
-                          value={newGoal.targetDate} onChange={e => setNewGoal({...newGoal, targetDate: e.target.value})} />
+                          value={newGoal.estimatedHours || ''} onChange={e => setNewGoal({...newGoal, estimatedHours: parseInt(e.target.value) || 0})} />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -313,13 +318,19 @@ export default function Scheduler({
                 <div key={goal.id} className={`pro-card p-5 border-r-4 ${goal.completed ? 'border-green-500 opacity-50' : goal.priority === 'High' ? 'border-red-500' : goal.priority === 'Medium' ? 'border-amber-500' : 'border-gray-500'}`}>
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h4 className="text-sm font-bold">{goal.title}</h4>
+                      <h4 className={`text-sm font-bold ${goal.completed ? 'line-through opacity-50' : ''}`}>{goal.title}</h4>
                       <span className="text-[9px] text-gray-500">{goal.category}</span>
                     </div>
-                    <button onClick={() => onUpdateGoal(goal.id, { completed: !goal.completed })}
-                      className={`p-2 rounded-lg ${goal.completed ? 'bg-green-500/20 text-green-500' : 'bg-white/5 text-gray-500 hover:text-green-500'} transition-all`}>
-                      <CheckCircle2 size={16} />
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => onUpdateGoal(goal.id, { completed: !goal.completed })}
+                        className={`p-2 rounded-lg ${goal.completed ? 'bg-green-500/20 text-green-500' : 'bg-white/5 text-gray-500 hover:text-green-500'} transition-all`}>
+                        <CheckCircle2 size={16} />
+                      </button>
+                      <button onClick={() => onDeleteGoal(goal.id)}
+                        className="p-2 rounded-lg bg-white/5 text-gray-500 hover:text-red-500 transition-all">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   {goal.description && <p className="text-[11px] text-gray-500 mb-3">{goal.description}</p>}
                   <div className="flex items-center justify-between text-[10px] text-gray-500">
@@ -413,8 +424,8 @@ export default function Scheduler({
               {tasks.slice().sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)).map(task => (
                 <div key={task.id} className={`pro-card p-4 flex items-center justify-between border-r-4 ${task.completed ? 'border-green-500/30 opacity-50' : task.priority === 'High' ? 'border-red-500' : task.priority === 'Medium' ? 'border-amber-500' : 'border-gray-500'}`}>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => onUpdateGoal(task.id, { progress: task.completed ? 0 : 100 })}
-                      className={`p-2 rounded-lg ${task.completed ? 'bg-green-500/20 text-green-500' : 'bg-white/5 text-gray-500'} transition-all`}>
+                    <button onClick={() => onUpdateTask(task.id, { completed: !task.completed })}
+                      className={`p-2 rounded-lg ${task.completed ? 'bg-green-500/20 text-green-500' : 'bg-white/5 text-gray-500 hover:text-green-500'} transition-all`}>
                       <CheckCircle2 size={14} />
                     </button>
                     <div>
@@ -428,7 +439,7 @@ export default function Scheduler({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] text-gray-600"><DifficultyStars level={task.energyRequired} /></span>
-                    <button className="p-2 text-gray-600 hover:text-red-500 transition-colors">
+                    <button onClick={() => onDeleteTask(task.id)} className="p-2 text-gray-600 hover:text-red-500 transition-colors">
                       <Trash2 size={12} />
                     </button>
                   </div>
@@ -499,7 +510,11 @@ export default function Scheduler({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {habits.map(habit => (
-                <div key={habit.id} className="pro-card p-5 border-r-4 border-green-500/30">
+                <div key={habit.id} className="pro-card p-5 border-r-4 border-green-500/30 relative">
+                  <button onClick={() => onDeleteHabit(habit.id)}
+                    className="absolute top-3 left-3 p-1.5 rounded-lg bg-white/5 text-gray-600 hover:text-red-500 transition-all">
+                    <Trash2 size={12} />
+                  </button>
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="text-sm font-bold">{habit.title}</h4>
                     <span className="text-[9px] font-bold text-green-500">{habit.frequency === 'Daily' ? 'يومي' : habit.frequency === 'Weekly' ? 'أسبوعي' : 'شهري'}</span>
