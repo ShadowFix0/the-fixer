@@ -116,21 +116,31 @@ export async function chatWithSystem(
     habitsCompletedToday: number;
     habitsTotal: number;
     activeBosses: number;
+    schedulerGoals: number;
+    schedulerTasks: number;
+    energyMental: number;
+    energyPhysical: number;
+    burnoutRisk: string;
   }
 ) {
   if (!ai && !getBackupAI()) {
     throw new Error("GEMINI_API_KEY is missing.");
   }
 
-  const context: Record<string, number> = systemContext || {};
-  const pendingTasks = context['pendingTasks'] || 0;
-  const activePlans = context['activePlans'] || 0;
-  const waterCurrent = context['waterIntakeMl'] || 0;
-  const waterTarget = context['waterTargetMl'] || 2000;
+  const context: Record<string, number | string> = systemContext || {};
+  const pendingTasks = typeof context['pendingTasks'] === 'number' ? context['pendingTasks'] : 0;
+  const activePlans = typeof context['activePlans'] === 'number' ? context['activePlans'] : 0;
+  const waterCurrent = typeof context['waterIntakeMl'] === 'number' ? context['waterIntakeMl'] : 0;
+  const waterTarget = typeof context['waterTargetMl'] === 'number' ? context['waterTargetMl'] : 2000;
   const waterPercent = Math.round((waterCurrent / waterTarget) * 100);
-  const habitsDone = context['habitsCompletedToday'] || 0;
-  const habitsTotal = context['habitsTotal'] || 0;
-  const bosses = context['activeBosses'] || 0;
+  const habitsDone = typeof context['habitsCompletedToday'] === 'number' ? context['habitsCompletedToday'] : 0;
+  const habitsTotal = typeof context['habitsTotal'] === 'number' ? context['habitsTotal'] : 0;
+  const bosses = typeof context['activeBosses'] === 'number' ? context['activeBosses'] : 0;
+  const schedulerGoals = typeof context['schedulerGoals'] === 'number' ? context['schedulerGoals'] : 0;
+  const schedulerTasks = typeof context['schedulerTasks'] === 'number' ? context['schedulerTasks'] : 0;
+  const energyMental = typeof context['energyMental'] === 'number' ? context['energyMental'] : 0;
+  const energyPhysical = typeof context['energyPhysical'] === 'number' ? context['energyPhysical'] : 0;
+  const burnoutRisk = String(context['burnoutRisk'] || 'Low');
 
   const awarenessContext = `
 ╔══════════════════════════════════════╗
@@ -138,9 +148,14 @@ export async function chatWithSystem(
 ╠══════════════════════════════════════╣
 ║ 📋 المهام المعلقة: ${pendingTasks} مهمة
 ║ 🗺️  خرائط الطريق النشطة: ${activePlans} خطة
-║ 💧 شرب الماء: ${waterCurrent}مل من ${waterTarget}مل (${waterPercent}%)
+║ 💧 شرب الماء: ${waterCurrent}مل/${waterTarget}مل (${waterPercent}%)
 ║ ⚔️  الطقوس اليومية: ${habitsDone}/${habitsTotal} مكتملة
 ║ 👹 الزعماء النشطين: ${bosses} زعيم
+║ 🎯 أهداف المخطط: ${schedulerGoals} هدف
+║ 📅 مهام المخطط: ${schedulerTasks} مهمة
+║ 🧠 الطاقة العقلية: ${energyMental}%
+║ 💪 الطاقة البدنية: ${energyPhysical}%
+║ ⚠️ خطر الإرهاق: ${burnoutRisk === 'High' ? 'مرتفع - خفف العبء!' : burnoutRisk === 'Medium' ? 'متوسط - انتبه' : 'منخفض'}
 ╚══════════════════════════════════════╝`;
 
   try {
@@ -161,9 +176,14 @@ export async function chatWithSystem(
 - Active plans: ${activePlans} road maps. Know what's in them.
 - Daily habits: ${habitsDone}/${habitsTotal} completed today.
 - Active bosses: ${bosses} bad habits to fight.
+- SCHEDULER GOALS: ${schedulerGoals} goals in the smart planner. Ask about them.
+- SCHEDULER TASKS: ${schedulerTasks} scheduled tasks. Remind user to check them.
+- ENERGY: Mental=${energyMental}% Physical=${energyPhysical}%. Schedule hard tasks when energy is high.
+- BURNOUT RISK: ${burnoutRisk}. If High, suggest rest and light activities!
 6. PRIORITIES: Before suggesting NEW tasks, remind user of incomplete ones. Say things like "لديك ${pendingTasks} مهمة معلقة - هل تريد إكمال إحداها أولاً؟"
 7. WATER: If user seems tired, distracted, or has low water intake, mention it. Say "لم تشرب ماءً كافياً اليوم - ${waterPercent}% فقط"
-8. ENCOURAGEMENT: Be cold but supportive. Reward completion, not accumulation.
+8. SCHEDULER: If user mentions feeling overwhelmed, check burnout risk and energy levels. Recommend rest if burnout is High or energy is Low. Suggest focusing on important scheduler tasks.
+9. ENCOURAGEMENT: Be cold but supportive. Reward completion, not accumulation.
 
 Memory: ${JSON.stringify(systemMemory || {})}`,
         responseMimeType: "application/json",

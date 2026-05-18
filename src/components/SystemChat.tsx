@@ -30,6 +30,11 @@ interface Props {
     habitsCompletedToday: number;
     habitsTotal: number;
     activeBosses: number;
+    schedulerGoals: number;
+    schedulerTasks: number;
+    energyMental: number;
+    energyPhysical: number;
+    burnoutRisk: string;
   };
 }
 

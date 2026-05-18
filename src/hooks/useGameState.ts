@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { GameState, CharacterStats, Habit, Mission, Shadow, Boss, Rank, Difficulty, SystemMemory, Plan } from '../types';
+import { GameState, CharacterStats, Habit, Mission, Shadow, Boss, Rank, Difficulty, SystemMemory, Plan, SchedulerGoal, SchedulerHabit, SchedulerTask, SchedulerEnergy, SchedulerPreferences } from '../types';
 import { XP_PER_LEVEL, RANK_THRESHOLDS, DIFFICULTY_MULTIPLIERS, HABIT_XP_REWARD, BOSS_DAMAGE_MULTIPLIER, PLAYER_DAMAGE_ON_FAIL } from '../constants';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -60,20 +60,44 @@ export function useGameState() {
       console.error("Failed to parse saved game state:", e);
       localStorage.removeItem(key);
     }
-    return {
-      character: INITIAL_STATS,
-      habits: DEFAULT_HABITS,
-      activeBosses: [],
-      missions: INITIAL_MISSIONS,
-      shadows: [],
-      plans: [],
-      waterIntake: { targetLiters: 2, currentMl: 0, lastWaterTime: Date.now() },
-      isDopamineFastActive: false,
-      lastResetDate: new Date().toISOString().split('T')[0],
-      systemMemory: INITIAL_MEMORY,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      theme: 'light',
-    };
+     return {
+       character: INITIAL_STATS,
+       habits: DEFAULT_HABITS,
+       activeBosses: [],
+       missions: INITIAL_MISSIONS,
+       shadows: [],
+       plans: [],
+       waterIntake: { targetLiters: 2, currentMl: 0, lastWaterTime: Date.now() },
+       isDopamineFastActive: false,
+       lastResetDate: new Date().toISOString().split('T')[0],
+       systemMemory: INITIAL_MEMORY,
+       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+       theme: 'light',
+       scheduler: {
+         goals: [],
+         habits: [],
+         tasks: [],
+         energy: {
+           mental: 100,
+           physical: 100,
+           lastUpdated: Date.now(),
+           dailyPattern: Array(24).fill(75) // Default 75% energy all day
+         },
+         preferences: {
+           sleepStart: "23:00",
+           sleepEnd: "07:00",
+           workStart: "09:00",
+           workEnd: "18:00",
+           productivityPeakStart: "10:00",
+           productivityPeakEnd: "16:00",
+           breakDuration: 15,
+           maxDailyHours: 8
+         },
+         generatedSchedules: {},
+         burnoutRisk: 'Low',
+         lastOptimization: Date.now()
+       }
+     };
   });
 
   // Re-load state when user changes
@@ -470,5 +494,88 @@ export function useGameState() {
         missions: prev.missions.map(m => m.id === missionId ? { ...m, reminderSent: true } : m)
       }));
     },
+
+    // Scheduler functions
+    addSchedulerGoal: (goal: SchedulerGoal) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          goals: [...prev.scheduler.goals, goal] 
+        } 
+      }));
+    },
+    updateSchedulerGoal: (id: string, updates: Partial<SchedulerGoal>) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          goals: prev.scheduler.goals.map(g => g.id === id ? { ...g, ...updates } : g) 
+        } 
+      }));
+    },
+    deleteSchedulerGoal: (id: string) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          goals: prev.scheduler.goals.filter(g => g.id !== id) 
+        } 
+      }));
+    },
+    addSchedulerHabit: (habit: SchedulerHabit) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          habits: [...prev.scheduler.habits, habit] 
+        } 
+      }));
+    },
+    addSchedulerTask: (task: SchedulerTask) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          tasks: [...prev.scheduler.tasks, task] 
+        } 
+      }));
+    },
+    updateSchedulerEnergy: (energy: Partial<SchedulerEnergy>) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          energy: { ...prev.scheduler.energy, ...energy } 
+        } 
+      }));
+    },
+    updateSchedulerPreferences: (prefs: Partial<SchedulerPreferences>) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          preferences: { ...prev.scheduler.preferences, ...prefs } 
+        } 
+      }));
+    },
+    updateBurnoutRisk: (risk: 'Low' | 'Medium' | 'High') => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          burnoutRisk: risk 
+        } 
+      }));
+    },
+    setGeneratedSchedule: (date: string, scheduleData: any) => {
+      setState(prev => ({ 
+        ...prev, 
+        scheduler: { 
+          ...prev.scheduler, 
+          generatedSchedules: { ...prev.scheduler.generatedSchedules, [date]: scheduleData } 
+        } 
+      }));
+    }
   };
 }

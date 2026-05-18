@@ -112,6 +112,76 @@ export interface WaterIntake {
   lastWaterTime: number;
 }
 
+export interface SchedulerGoal {
+  id: string;
+  title: string;
+  description: string;
+  category: 'Health' | 'Career' | 'Learning' | 'Relationships' | 'Finance' | 'Personal';
+  priority: 'Low' | 'Medium' | 'High';
+  targetDate: string; // YYYY-MM-DD
+  estimatedHours: number;
+  completed: boolean;
+  progress: number; // 0-100
+  createdAt: number;
+}
+
+export interface SchedulerHabit {
+  id: string;
+  title: string;
+  frequency: 'Daily' | 'Weekly' | 'Monthly';
+  preferredTime: string; // HH:MM format
+  durationMinutes: number;
+  streak: number;
+  completedToday: boolean;
+  energyCost: 'Low' | 'Medium' | 'High';
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+}
+
+export interface SchedulerTask {
+  id: string;
+  title: string;
+  description: string;
+  scheduledDate: string; // YYYY-MM-DD
+  scheduledTime: string; // HH:MM format
+  durationMinutes: number;
+  priority: 'Low' | 'Medium' | 'High';
+  energyRequired: 'Low' | 'Medium' | 'High';
+  focusRequired: 'Low' | 'Medium' | 'High';
+  completed: boolean;
+  relatedGoalId?: string;
+  relatedHabitId?: string;
+  createdAt: number;
+}
+
+export interface SchedulerEnergy {
+  mental: number; // 0-100
+  physical: number; // 0-100
+  lastUpdated: number; // timestamp
+  dailyPattern: Array<number>; // 24 values representing energy by hour
+}
+
+export interface SchedulerPreferences {
+  sleepStart: string; // HH:MM
+  sleepEnd: string; // HH:MM
+  workStart: string; // HH:MM
+  workEnd: string; // HH:MM
+  productivityPeakStart: string; // HH:MM
+  productivityPeakEnd: string; // HH:MM
+  breakDuration: number; // minutes
+  maxDailyHours: number; // hours
+}
+
+export interface SchedulerState {
+  goals: SchedulerGoal[];
+  habits: SchedulerHabit[];
+  tasks: SchedulerTask[];
+  energy: SchedulerEnergy;
+  preferences: SchedulerPreferences;
+  generatedSchedules: Record<string, any>; // date -> schedule data
+  burnoutRisk: 'Low' | 'Medium' | 'High';
+  lastOptimization: number; // timestamp
+}
+
 export interface GameState {
   character: CharacterStats;
   habits: Habit[];
@@ -128,4 +198,5 @@ export interface GameState {
   systemName?: string;
   timezone?: string;
   theme: 'light' | 'dark' | 'poetry';
+  scheduler: SchedulerState;
 }

@@ -18,6 +18,7 @@ import Store from './components/Store';
 import SystemChat from './components/SystemChat';
 import SystemMemoryDisplay from './components/SystemMemoryDisplay';
 import Plans from './components/Plans';
+import Scheduler from './components/Scheduler';
 import WaterTracker from './components/WaterTracker';
 import NotificationToast from './components/NotificationToast';
 import { 
@@ -40,7 +41,8 @@ import {
   FileText,
   Map as MapIcon,
   Sun,
-  Moon
+  Moon,
+  Calendar,
 } from 'lucide-react';
 
 class ErrorBoundary extends Component<{children: React.ReactNode}, {error: Error | null}> {
@@ -148,6 +150,13 @@ function HunterSystem() {
     setWaterGoal,
     markMissionReminderSent,
     setTheme,
+    addSchedulerGoal,
+    addSchedulerHabit,
+    addSchedulerTask,
+    updateSchedulerGoal,
+    updateSchedulerEnergy,
+    updateSchedulerPreferences,
+    updateBurnoutRisk,
   } = useGameState();
 
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -527,6 +536,11 @@ function HunterSystem() {
                 habitsCompletedToday: state.habits.filter(h => h.completedToday).length,
                 habitsTotal: state.habits.length,
                 activeBosses: state.activeBosses.length,
+                schedulerGoals: state.scheduler?.goals?.length || 0,
+                schedulerTasks: state.scheduler?.tasks?.length || 0,
+                energyMental: state.scheduler?.energy?.mental || 0,
+                energyPhysical: state.scheduler?.energy?.physical || 0,
+                burnoutRisk: state.scheduler?.burnoutRisk || 'Low',
               }}
             />
             <div className="mt-12 pt-12 border-t border-white/5">
@@ -536,6 +550,26 @@ function HunterSystem() {
 </div>
               <SystemMemoryDisplay memory={state.systemMemory || { interests: [], priorities: [], passions: [], dreams: [], problems: [], mistakes: [], otherNotes: [] }} />
             </div>
+          </div>
+        );
+      case 'scheduler':
+        return (
+          <div className="max-w-6xl mx-auto">
+            <Scheduler
+              goals={state.scheduler.goals}
+              habits={state.scheduler.habits}
+              tasks={state.scheduler.tasks}
+              energy={state.scheduler.energy}
+              preferences={state.scheduler.preferences}
+              burnoutRisk={state.scheduler.burnoutRisk}
+              onAddGoal={addSchedulerGoal}
+              onAddHabit={addSchedulerHabit}
+              onAddTask={addSchedulerTask}
+              onUpdateGoal={updateSchedulerGoal}
+              onUpdateEnergy={updateSchedulerEnergy}
+              onUpdatePreferences={updateSchedulerPreferences}
+              onUpdateBurnoutRisk={updateBurnoutRisk}
+            />
           </div>
         );
       case 'plans':
@@ -700,6 +734,12 @@ function HunterSystem() {
               label="خرائط الطريق" 
               active={activeTab === 'plans'} 
               onClick={() => { setActiveTab('plans'); setIsSidebarOpen(false); }} 
+            />
+            <NavItem 
+              icon={<Calendar size={18} />} 
+              label="المخطط الذكي" 
+              active={activeTab === 'scheduler'} 
+              onClick={() => { setActiveTab('scheduler'); setIsSidebarOpen(false); }} 
             />
             <div className="pt-4 mt-4 border-t border-white/5">
               <NavItem 
@@ -942,6 +982,12 @@ function HunterSystem() {
           label="الخطط" 
           active={activeTab === 'plans'} 
           onClick={() => setActiveTab('plans')} 
+        />
+        <BottomNavItem 
+          icon={<Calendar size={20} />} 
+          label="المخطط" 
+          active={activeTab === 'scheduler'} 
+          onClick={() => setActiveTab('scheduler')} 
         />
       </nav>
     </div>
