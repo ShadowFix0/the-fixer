@@ -315,7 +315,7 @@ function HunterSystem() {
         }
 
         // 2. Scheduled Missions (using dueDate and dueTime)
-        if (mission.dueDate && mission.dueTime && mission.reminderTimeMinutes) {
+        if (mission.dueDate && mission.dueTime) {
           try {
             const [year, month, day] = mission.dueDate.split('-').map(Number);
             const [hour, minute] = mission.dueTime.split(':').map(Number);
@@ -324,8 +324,19 @@ function HunterSystem() {
             const diffMs = deadline.getTime() - now.getTime();
             const diffMin = Math.floor(diffMs / 60000);
 
-            if (diffMin <= mission.reminderTimeMinutes && diffMin > 0) {
+            // Reminder before deadline (if user set reminderTimeMinutes)
+            if (mission.reminderTimeMinutes && diffMin <= mission.reminderTimeMinutes && diffMin > 0) {
               notifyMissionDeadline(mission.title, diffMin);
+              markMissionReminderSent(mission.id);
+            }
+
+            // Overdue notification when deadline passes
+            if (diffMs <= 0 && Math.abs(diffMin) === 0) {
+              sendLocalNotification('موعد المهمة انتهى!', {
+                body: `لقد انتهى الوقت المخصص لمهمة: ${mission.title}`,
+                tag: 'mission-overdue',
+                type: 'mission_deadline',
+              } as any);
               markMissionReminderSent(mission.id);
             }
           } catch (e) {

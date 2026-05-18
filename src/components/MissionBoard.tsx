@@ -337,7 +337,7 @@ function MissionCard({ mission, onComplete, onStart, onDelete }: { mission: Miss
               </div>
             )}
           </div>
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg shadow-red-900/10"
