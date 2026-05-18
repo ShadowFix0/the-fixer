@@ -174,7 +174,7 @@ export default function MissionBoard({ missions, onComplete, onStart, onDelete, 
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">التاريخ</label>
                   <input 
@@ -258,6 +258,14 @@ function MissionCard({ mission, onComplete, onStart, onDelete }: { mission: Miss
   const isFated = mission.type === 'Fated';
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
 
+  const isOverdue = (() => {
+    if (mission.isCompleted || !mission.dueDate || !mission.dueTime) return false;
+    const [year, month, day] = mission.dueDate.split('-').map(Number);
+    const [hour, minute] = mission.dueTime.split(':').map(Number);
+    const deadline = new Date(year, month - 1, day, hour, minute);
+    return deadline.getTime() < Date.now();
+  })();
+
   useEffect(() => {
     if (!mission.startTime || !mission.durationMinutes || mission.isCompleted) return;
 
@@ -288,7 +296,7 @@ function MissionCard({ mission, onComplete, onStart, onDelete }: { mission: Miss
       whileHover={{ y: -4, scale: 1.01 }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
       className={`pro-card p-6 flex flex-col justify-between group cursor-default h-full ${
-        mission.isCompleted ? 'opacity-30 grayscale' : 'pro-card-hover'
+        mission.isCompleted ? 'opacity-30 grayscale' : isOverdue ? 'border-red-500/40 bg-gradient-to-br from-[#1E1E1F] to-[#1D0D0D]' : 'pro-card-hover'
       } ${isFated ? 'border-amber-500/20 bg-gradient-to-br from-[#1E1E1F] to-[#251D0D]' : ''}`}
     >
       <div>
@@ -312,9 +320,14 @@ function MissionCard({ mission, onComplete, onStart, onDelete }: { mission: Miss
               </div>
             )}
             {(mission.dueDate || mission.dueTime) && !mission.isCompleted && (
-              <div className="flex items-center gap-2 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-md text-[8px] font-bold text-amber-500 uppercase tracking-widest">
+              <div className={`flex items-center gap-2 px-2 py-0.5 rounded-md text-[8px] font-bold uppercase tracking-widest ${
+                isOverdue 
+                  ? 'bg-red-500/20 border border-red-500/40 text-red-400' 
+                  : 'bg-amber-500/10 border border-amber-500/20 text-amber-500'
+              }`}>
                 <Calendar size={10} />
                 <span>{mission.dueDate || 'اليوم'} @ {mission.dueTime || '--:--'}</span>
+                {isOverdue && <span className="mr-1 text-red-400">(متأخرة)</span>}
               </div>
             )}
             {mission.reminderTimeMinutes && !mission.isCompleted && (
