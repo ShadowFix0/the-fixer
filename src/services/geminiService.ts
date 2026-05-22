@@ -360,6 +360,51 @@ export async function generateDailyMissions(mood: string, performance: string) {
   }
 }
 
+export async function getDopamineFastGuidance() {
+  if (!ai && !getBackupAI()) {
+    throw new Error("GEMINI_API_KEY is missing.");
+  }
+
+  try {
+    const response = await generateContentWithFallback({
+      contents: "The user is starting a 'Dopamine Fast' focus session. Give them a list of 5 specific modern distractions or dopamine-triggering behaviors to AVOID during this hour. Use an RPG/System tone (like 'Prohibited Actions' or 'Forbidden Rites'). Also provide a brief, cold but encouraging motivation message. Return in Arabic.",
+      config: {
+        systemInstruction: "You are the 'Shadow Sovereign System'. Your tone is absolute, authoritative, and cold yet supportive. You speak to the user as their system interface. Always respond in Arabic unless specifically asked otherwise.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            prohibitedActions: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "5 distinct behaviors or distractions to avoid during the fast."
+            },
+            systemMotivation: {
+              type: Type.STRING,
+              description: "A short, powerful motivating message from the System."
+            }
+          },
+          required: ["prohibitedActions", "systemMotivation"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  } catch (error) {
+    console.error("Error in getDopamineFastGuidance:", error);
+    return { 
+      prohibitedActions: [
+        "تجنب التمرير اللانهائي في وسائل التواصل الاجتماعي",
+        "تجنب التحقق من الإشعارات غير الضرورية",
+        "تجنب الوجبات السريعة أو الأطعمة الغنية بالسكر",
+        "تجنب الألعاب الإلكترونية سريعة الوتيرة",
+        "تجنب التشتت بتعدد المهام غير المدروسة"
+      ], 
+      systemMotivation: "النظام يراقب تقدمك. لا تخذل طموحاتك." 
+    };
+  }
+}
+
 export async function arrangeDailySchedule(tasks: any[], dayStartTime: string, systemContext: any) {
   if (!ai && !getBackupAI()) return tasks;
 
