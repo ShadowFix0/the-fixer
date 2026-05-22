@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { GameState, CharacterStats, Habit, Mission, Shadow, Boss, Rank, Difficulty, SystemMemory, Plan, SchedulerGoal, SchedulerHabit, SchedulerTask, SchedulerEnergy, SchedulerPreferences } from '../types';
+import { GameState, CharacterStats, Habit, Mission, Shadow, Boss, Rank, Difficulty, SystemMemory, Plan, DailyTask } from '../types';
 import { XP_PER_LEVEL, RANK_THRESHOLDS, DIFFICULTY_MULTIPLIERS, HABIT_XP_REWARD, BOSS_DAMAGE_MULTIPLIER, PLAYER_DAMAGE_ON_FAIL } from '../constants';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -60,26 +60,12 @@ export function useGameState() {
         // Ensure scheduler always exists (migration for old saves)
         if (!parsed.scheduler) {
           parsed.scheduler = {
-            goals: [],
-            habits: [],
-            tasks: [],
-            energy: {
-              mental: 100,
-              physical: 100,
-              lastUpdated: Date.now(),
-              dailyPattern: Array(24).fill(75)
+            dailySchedule: {
+              date: new Date().toISOString().split('T')[0],
+              tasks: [],
+              dayStartTime: "08:00",
+              generatedAt: Date.now()
             },
-            preferences: {
-              sleepStart: "23:00",
-              sleepEnd: "07:00",
-              workStart: "09:00",
-              workEnd: "18:00",
-              productivityPeakStart: "10:00",
-              productivityPeakEnd: "16:00",
-              breakDuration: 15,
-              maxDailyHours: 8
-            },
-            generatedSchedules: {},
             burnoutRisk: 'Low',
             lastOptimization: Date.now()
           };
@@ -104,26 +90,12 @@ export function useGameState() {
        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
        theme: 'light',
        scheduler: {
-         goals: [],
-         habits: [],
-         tasks: [],
-         energy: {
-           mental: 100,
-           physical: 100,
-           lastUpdated: Date.now(),
-           dailyPattern: Array(24).fill(75) // Default 75% energy all day
+         dailySchedule: {
+           date: new Date().toISOString().split('T')[0],
+           tasks: [],
+           dayStartTime: "08:00",
+           generatedAt: Date.now()
          },
-         preferences: {
-           sleepStart: "23:00",
-           sleepEnd: "07:00",
-           workStart: "09:00",
-           workEnd: "18:00",
-           productivityPeakStart: "10:00",
-           productivityPeakEnd: "16:00",
-           breakDuration: 15,
-           maxDailyHours: 8
-         },
-         generatedSchedules: {},
          burnoutRisk: 'Low',
          lastOptimization: Date.now()
        }
@@ -139,10 +111,14 @@ export function useGameState() {
         const parsed = JSON.parse(saved);
         if (!parsed.scheduler) {
           parsed.scheduler = {
-            goals: [], habits: [], tasks: [],
-            energy: { mental: 100, physical: 100, lastUpdated: Date.now(), dailyPattern: Array(24).fill(75) },
-            preferences: { sleepStart: "23:00", sleepEnd: "07:00", workStart: "09:00", workEnd: "18:00", productivityPeakStart: "10:00", productivityPeakEnd: "16:00", breakDuration: 15, maxDailyHours: 8 },
-            generatedSchedules: {}, burnoutRisk: 'Low', lastOptimization: Date.now()
+            dailySchedule: {
+              date: new Date().toISOString().split('T')[0],
+              tasks: [],
+              dayStartTime: "08:00",
+              generatedAt: Date.now()
+            },
+            burnoutRisk: 'Low',
+            lastOptimization: Date.now()
           };
         }
         setState(parsed);
@@ -535,112 +511,64 @@ export function useGameState() {
     },
 
     // Scheduler functions
-    addSchedulerGoal: (goal: SchedulerGoal) => {
+    addDailyTask: (task: DailyTask) => {
       setState(prev => ({ 
         ...prev, 
         scheduler: { 
           ...prev.scheduler, 
-          goals: [...prev.scheduler.goals, goal] 
+          dailySchedule: {
+            ...prev.scheduler.dailySchedule,
+            tasks: [...prev.scheduler.dailySchedule.tasks, task]
+          }
         } 
       }));
     },
-    updateSchedulerGoal: (id: string, updates: Partial<SchedulerGoal>) => {
+    updateDailyTask: (id: string, updates: Partial<DailyTask>) => {
       setState(prev => ({ 
         ...prev, 
         scheduler: { 
           ...prev.scheduler, 
-          goals: prev.scheduler.goals.map(g => g.id === id ? { ...g, ...updates } : g) 
+          dailySchedule: {
+            ...prev.scheduler.dailySchedule,
+            tasks: prev.scheduler.dailySchedule.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
+          }
         } 
       }));
     },
-    updateSchedulerTask: (id: string, updates: Partial<SchedulerTask>) => {
+    deleteDailyTask: (id: string) => {
       setState(prev => ({ 
         ...prev, 
         scheduler: { 
           ...prev.scheduler, 
-          tasks: prev.scheduler.tasks.map(t => t.id === id ? { ...t, ...updates } : t) 
+          dailySchedule: {
+            ...prev.scheduler.dailySchedule,
+            tasks: prev.scheduler.dailySchedule.tasks.filter(t => t.id !== id)
+          }
         } 
       }));
     },
-    deleteSchedulerGoal: (id: string) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          goals: prev.scheduler.goals.filter(g => g.id !== id) 
-        } 
+    setDayStartTime: (time: string) => {
+      setState(prev => ({
+        ...prev,
+        scheduler: {
+          ...prev.scheduler,
+          dailySchedule: {
+            ...prev.scheduler.dailySchedule,
+            dayStartTime: time
+          }
+        }
       }));
     },
-    deleteSchedulerTask: (id: string) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          tasks: prev.scheduler.tasks.filter(t => t.id !== id) 
-        } 
-      }));
-    },
-    deleteSchedulerHabit: (id: string) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          habits: prev.scheduler.habits.filter(h => h.id !== id) 
-        } 
-      }));
-    },
-    addSchedulerHabit: (habit: SchedulerHabit) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          habits: [...prev.scheduler.habits, habit] 
-        } 
-      }));
-    },
-    addSchedulerTask: (task: SchedulerTask) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          tasks: [...prev.scheduler.tasks, task] 
-        } 
-      }));
-    },
-    updateSchedulerEnergy: (energy: Partial<SchedulerEnergy>) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          energy: { ...prev.scheduler.energy, ...energy } 
-        } 
-      }));
-    },
-    updateSchedulerPreferences: (prefs: Partial<SchedulerPreferences>) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          preferences: { ...prev.scheduler.preferences, ...prefs } 
-        } 
-      }));
-    },
-    updateBurnoutRisk: (risk: 'Low' | 'Medium' | 'High') => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          burnoutRisk: risk 
-        } 
-      }));
-    },
-    setGeneratedSchedule: (date: string, scheduleData: any) => {
-      setState(prev => ({ 
-        ...prev, 
-        scheduler: { 
-          ...prev.scheduler, 
-          generatedSchedules: { ...prev.scheduler.generatedSchedules, [date]: scheduleData } 
-        } 
+    reorderDailyTasks: (tasks: DailyTask[]) => {
+      setState(prev => ({
+        ...prev,
+        scheduler: {
+          ...prev.scheduler,
+          dailySchedule: {
+            ...prev.scheduler.dailySchedule,
+            tasks: tasks
+          }
+        }
       }));
     }
   };

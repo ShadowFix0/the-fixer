@@ -18,7 +18,7 @@ import Store from './components/Store';
 import SystemChat from './components/SystemChat';
 import SystemMemoryDisplay from './components/SystemMemoryDisplay';
 import Plans from './components/Plans';
-import Scheduler from './components/Scheduler';
+import DailySchedule from './components/DailySchedule';
 import WaterTracker from './components/WaterTracker';
 import NotificationToast from './components/NotificationToast';
 import { 
@@ -150,17 +150,11 @@ function HunterSystem() {
     setWaterGoal,
     markMissionReminderSent,
     setTheme,
-    addSchedulerGoal,
-    addSchedulerHabit,
-    addSchedulerTask,
-    updateSchedulerGoal,
-    updateSchedulerTask,
-    deleteSchedulerGoal,
-    deleteSchedulerTask,
-    deleteSchedulerHabit,
-    updateSchedulerEnergy,
-    updateSchedulerPreferences,
-    updateBurnoutRisk,
+    addDailyTask,
+    updateDailyTask,
+    deleteDailyTask,
+    setDayStartTime,
+    reorderDailyTasks,
   } = useGameState();
 
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -559,24 +553,14 @@ function HunterSystem() {
       case 'scheduler':
         return (
           <div className="max-w-6xl mx-auto">
-            <Scheduler
-              goals={state.scheduler.goals}
-              habits={state.scheduler.habits}
-              tasks={state.scheduler.tasks}
-              energy={state.scheduler.energy}
-              preferences={state.scheduler.preferences}
-              burnoutRisk={state.scheduler.burnoutRisk}
-              onAddGoal={addSchedulerGoal}
-              onAddHabit={addSchedulerHabit}
-              onAddTask={addSchedulerTask}
-              onUpdateGoal={updateSchedulerGoal}
-              onUpdateTask={updateSchedulerTask}
-              onDeleteGoal={deleteSchedulerGoal}
-              onDeleteTask={deleteSchedulerTask}
-              onDeleteHabit={deleteSchedulerHabit}
-              onUpdateEnergy={updateSchedulerEnergy}
-              onUpdatePreferences={updateSchedulerPreferences}
-              onUpdateBurnoutRisk={updateBurnoutRisk}
+            <DailySchedule
+              tasks={state.scheduler.dailySchedule.tasks}
+              dayStartTime={state.scheduler.dailySchedule.dayStartTime}
+              onAddTask={addDailyTask}
+              onUpdateTask={updateDailyTask}
+              onDeleteTask={deleteDailyTask}
+              onReorderTasks={reorderDailyTasks}
+              onSetDayStartTime={setDayStartTime}
             />
           </div>
         );
