@@ -19,6 +19,7 @@ import SystemChat from './components/SystemChat';
 import SystemMemoryDisplay from './components/SystemMemoryDisplay';
 import Plans from './components/Plans';
 import DailySchedule from './components/DailySchedule';
+import { arrangeDailySchedule } from './services/geminiService';
 import WaterTracker from './components/WaterTracker';
 import NotificationToast from './components/NotificationToast';
 import { 
@@ -225,6 +226,15 @@ function HunterSystem() {
     }
   }, [user, state.character.name]);
 
+  const handleSmartArrange = async () => {
+    const arranged = await arrangeDailySchedule(state.scheduler.dailySchedule.tasks, state.scheduler.dailySchedule.dayStartTime, {
+        energyMental: state.scheduler.energy?.mental,
+        energyPhysical: state.scheduler.energy?.physical,
+        burnoutRisk: state.scheduler.burnoutRisk
+    });
+    reorderDailyTasks(arranged);
+  };
+
   const handleSetupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (playerInput.trim() && systemInput.trim()) {
@@ -232,6 +242,7 @@ function HunterSystem() {
       setShowSetup(false);
     }
   };
+
 
   // activeTab is now declared above (before useNotifications)
   const [searchTerm, setSearchTerm] = useState('');
@@ -561,6 +572,7 @@ function HunterSystem() {
               onDeleteTask={deleteDailyTask}
               onReorderTasks={reorderDailyTasks}
               onSetDayStartTime={setDayStartTime}
+              onSmartArrange={handleSmartArrange}
             />
           </div>
         );

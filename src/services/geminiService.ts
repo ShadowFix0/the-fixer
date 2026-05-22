@@ -360,48 +360,50 @@ export async function generateDailyMissions(mood: string, performance: string) {
   }
 }
 
-export async function getDopamineFastGuidance() {
-  if (!ai && !getBackupAI()) {
-    throw new Error("GEMINI_API_KEY is missing.");
-  }
+export async function arrangeDailySchedule(tasks: any[], dayStartTime: string, systemContext: any) {
+  if (!ai && !getBackupAI()) return tasks;
 
   try {
     const response = await generateContentWithFallback({
-      contents: "The user is starting a 'Dopamine Fast' focus session. Give them a list of 5 specific modern distractions or dopamine-triggering behaviors to AVOID during this hour. Use an RPG/System tone (like 'Prohibited Actions' or 'Forbidden Rites'). Also provide a brief, cold but encouraging motivation message. Return in Arabic.",
+      contents: [{ role: 'user', parts: [{ text: `
+        Arrange these tasks into a daily schedule starting at ${dayStartTime}.
+        Tasks: ${JSON.stringify(tasks)}.
+        System Context: ${JSON.stringify(systemContext)}.
+        
+        Rules:
+        1. Maintain existing task IDs.
+        2. Insert reasonable breaks (rest, prayer, food) based on duration and context.
+        3. Assign new startTime and endTime for all tasks and breaks based on sequential ordering.
+        4. Respect priorities (High priority tasks first).
+        
+        Return ONLY valid JSON array of updated tasks (with new startTime and endTime).
+      `}] }],
       config: {
-        systemInstruction: "You are the 'Shadow Sovereign System'. Your tone is absolute, authoritative, and cold yet supportive. You speak to the user as their system interface. Always respond in Arabic unless specifically asked otherwise.",
         responseMimeType: "application/json",
         responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            prohibitedActions: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "5 distinct behaviors or distractions to avoid during the fast."
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              title: { type: Type.STRING },
+              durationMinutes: { type: Type.NUMBER },
+              priority: { type: Type.STRING },
+              startTime: { type: Type.STRING },
+              endTime: { type: Type.STRING },
+              completed: { type: Type.BOOLEAN },
+              order: { type: Type.NUMBER }
             },
-            systemMotivation: {
-              type: Type.STRING,
-              description: "A short, powerful motivating message from the System."
-            }
-          },
-          required: ["prohibitedActions", "systemMotivation"]
+            required: ["id", "title", "durationMinutes", "priority", "startTime", "endTime", "completed", "order"]
+          }
         }
       }
     });
-
-    return JSON.parse(response.text || "{}");
+    
+    return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Error in getDopamineFastGuidance:", error);
-    return { 
-      prohibitedActions: [
-        "تجنب التمرير اللانهائي في وسائل التواصل الاجتماعي",
-        "تجنب التحقق من الإشعارات غير الضرورية",
-        "تجنب الوجبات السريعة أو الأطعمة الغنية بالسكر",
-        "تجنب الألعاب الإلكترونية سريعة الوتيرة",
-        "تجنب التشتت بتعدد المهام غير المدروسة"
-      ], 
-      systemMotivation: "النظام يراقب تقدمك. لا تخذل طموحاتك." 
-    };
+    console.error("Smart Arrange Error:", error);
+    return tasks;
   }
 }
 

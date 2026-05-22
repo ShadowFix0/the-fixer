@@ -10,7 +10,8 @@ export default function DailySchedule({
     onUpdateTask, 
     onDeleteTask, 
     onReorderTasks,
-    onSetDayStartTime
+    onSetDayStartTime,
+    onSmartArrange
 }: {
     tasks: DailyTask[];
     dayStartTime: string;
@@ -19,6 +20,7 @@ export default function DailySchedule({
     onDeleteTask: (id: string) => void;
     onReorderTasks: (tasks: DailyTask[]) => void;
     onSetDayStartTime: (time: string) => void;
+    onSmartArrange: () => void;
 }) {
     const [draggedTask, setDraggedTask] = useState<DailyTask | null>(null);
 
@@ -56,7 +58,7 @@ export default function DailySchedule({
                         onChange={(e) => onSetDayStartTime(e.target.value)}
                         className="bg-neutral-800 p-1 rounded"
                     />
-                    <button className="bg-blue-600 p-2 rounded flex items-center gap-1">
+                    <button onClick={onSmartArrange} className="bg-blue-600 p-2 rounded flex items-center gap-1">
                         <Zap size={16} /> ترتيب ذكي
                     </button>
                 </div>
@@ -74,8 +76,27 @@ export default function DailySchedule({
                     >
                         <GripVertical className="text-neutral-500" />
                         <div className="flex-1">
-                            <div className="font-semibold">{task.title}</div>
-                            <div className="text-sm text-neutral-400">{task.startTime} - {task.durationMinutes} دقيقة</div>
+                            <input 
+                                type="text"
+                                value={task.title}
+                                onChange={(e) => onUpdateTask(task.id, { title: e.target.value })}
+                                className="font-semibold bg-transparent border-none focus:outline-none w-full"
+                            />
+                            <div className="text-sm text-neutral-400 flex gap-2">
+                                <input 
+                                    type="time" 
+                                    value={task.startTime} 
+                                    onChange={(e) => onUpdateTask(task.id, { startTime: e.target.value })}
+                                    className="bg-transparent border-none focus:outline-none w-20"
+                                />
+                                - 
+                                <input 
+                                    type="number" 
+                                    value={task.durationMinutes} 
+                                    onChange={(e) => onUpdateTask(task.id, { durationMinutes: parseInt(e.target.value) })}
+                                    className="bg-transparent border-none focus:outline-none w-12"
+                                /> دقيقة
+                            </div>
                         </div>
                         <button onClick={() => onDeleteTask(task.id)} className="text-red-500">
                             <Trash2 size={16} />
